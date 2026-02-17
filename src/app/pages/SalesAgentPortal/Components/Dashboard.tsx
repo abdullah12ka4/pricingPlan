@@ -8,10 +8,10 @@ import { useState } from 'react';
 
 export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (value: Step) => void, id: string | null }) {
   const [showAllQuotes, setShowAllQuotes] = useState(false);
-
   if (!id) return null;
   const { data: agentAnalytics, isLoading: loadingAnalytics, error: analyticsError } = useGetAgentAnalyticsQuery(id);
-  const { data: quotes, isLoading: loadQuotes, error: quoteError } = useGetQuotesQuery(id!, { skip: !id })
+  // const { data: quotes, isLoading: loadQuotes, error: quoteError } = useGetQuotesQuery(id!, { skip: !id })
+  const { data: quotes, isLoading: loadQuotes, error: quoteError } = useGetQuotesQuery({id})
 
   const loading = loadingAnalytics || loadQuotes;
   const error = analyticsError || quoteError
@@ -24,24 +24,16 @@ export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (val
       </div>
     );
   }
-
-  if (error && "status" in error) {
-    return (
-      <div className="text-red-500 h-screen flex items-center justify-center">
-        Error {error.status}: {"error" in error ? error.error : "Something went wrong"}
-      </div>
-    );
-  }
   // Mock data for dashboard
 
 
-  const recentQuotes = [
-    { id: 'Q-2401', client: 'Melbourne Training Institute', amount: 24500, status: 'sent', date: '2 hours ago', orgType: 'RTO' },
-    { id: 'Q-2400', client: 'Sydney Business School', amount: 12800, status: 'viewed', date: '5 hours ago', orgType: 'School' },
-    { id: 'Q-2399', client: 'Brisbane TAFE', amount: 18900, status: 'paid', date: '1 day ago', orgType: 'TAFE' },
-    { id: 'Q-2398', client: 'Corporate Learning Hub', amount: 31200, status: 'sent', date: '1 day ago', orgType: 'Corporate' },
-    { id: 'Q-2397', client: 'Adelaide University', amount: 45600, status: 'viewed', date: '2 days ago', orgType: 'University' }
-  ];
+  // const recentQuotes = [
+  //   { id: 'Q-2401', client: 'Melbourne Training Institute', amount: 24500, status: 'sent', date: '2 hours ago', orgType: 'RTO' },
+  //   { id: 'Q-2400', client: 'Sydney Business School', amount: 12800, status: 'viewed', date: '5 hours ago', orgType: 'School' },
+  //   { id: 'Q-2399', client: 'Brisbane TAFE', amount: 18900, status: 'paid', date: '1 day ago', orgType: 'TAFE' },
+  //   { id: 'Q-2398', client: 'Corporate Learning Hub', amount: 31200, status: 'sent', date: '1 day ago', orgType: 'Corporate' },
+  //   { id: 'Q-2397', client: 'Adelaide University', amount: 45600, status: 'viewed', date: '2 days ago', orgType: 'University' }
+  // ];
 
   const myStats = {
     monthRevenue: 187000,

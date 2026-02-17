@@ -50,12 +50,12 @@ export default function SalesAgent() {
   }
 
   /* ------------------ Handlers ------------------ */
-  const handleEdit = (agent: SalesAgentType) => {
+  const handleEdit = (agent: any) => {
     setSelectedAgent(agent)
     setShowModal(true)
   }
 
-  const handleView = (agent: SalesAgentType) => {
+  const handleView = (agent: any) => {
     if (agent) {
       setViewAgent(agent)
       setInfoModal(true)

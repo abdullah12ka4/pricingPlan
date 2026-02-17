@@ -9,6 +9,9 @@ import { activeQuotesApi } from './services/ActiveQuotes'
 import { FeaturesApi } from './services/Features'
 import { OrganizationApi } from './services/Organization'
 import { notificationApi } from './services/Notifications'
+import { subscriptionApi } from './services/Subscription'
+import { paymentApi } from './services/Payment'
+import { InvoiceApi } from './services/Invoice'
 
 export const store = configureStore({
   reducer: {
@@ -21,14 +24,28 @@ export const store = configureStore({
     [activeQuotesApi.reducerPath]: activeQuotesApi.reducer,
     [FeaturesApi.reducerPath]: FeaturesApi.reducer,
     [OrganizationApi.reducerPath]: OrganizationApi.reducer,
-    [notificationApi.reducerPath]: notificationApi.reducer
+    [notificationApi.reducerPath]: notificationApi.reducer,
+    [subscriptionApi.reducerPath]: subscriptionApi.reducer,
+    [paymentApi.reducerPath]: paymentApi.reducer,
+    [InvoiceApi.reducerPath]: InvoiceApi.reducer,
   },
   // Adding the api middleware enables caching, invalidation, polling,
   // and other useful features of `rtk-query`.
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(userApi.middleware, tiersApi.middleware, AddOnsApi.middleware, networkApi.middleware, salesAgentApi.middleware, activeQuotesApi.middleware, FeaturesApi.middleware, OrganizationApi.middleware, notificationApi.middleware),
+    getDefaultMiddleware().concat(
+      userApi.middleware,
+      tiersApi.middleware, AddOnsApi.middleware,
+      networkApi.middleware,
+      salesAgentApi.middleware,
+      activeQuotesApi.middleware,
+      FeaturesApi.middleware,
+      OrganizationApi.middleware,
+      notificationApi.middleware,
+      subscriptionApi.middleware,
+      paymentApi.middleware,
+      InvoiceApi.middleware),
 })
 
 // optional, but required for refetchOnFocus/refetchOnReconnect behaviors
 // see `setupListeners` docs - takes an optional callback as the 2nd arg for customization
-setupListeners(store.dispatch)
+setupListeners(store.dispatch)                                                                                                                          

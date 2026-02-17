@@ -6,18 +6,10 @@ import { PricingPlan } from '../../AdminDashboard/Types/AdminType';
 
 export default function PricingTier({ data }: { data: PricingPlan[] }) {
     const { watch, setValue } = useFormContext<SalesWizardForm>();
-      const selectedOrgType = watch("organizationType");
+    const selectedOrgType = watch("organizationType");
     const selectedPlanType = watch("plan");   // 'BASIC' | 'PREMIUM'
     const selectedTierId = watch("tier");     // tier id or null
 
-    // Guard: if we somehow got here without previous selections
-    if (!selectedOrgType || !selectedPlanType) {
-        return (
-            <div className="max-w-4xl mx-auto text-center text-gray-600">
-                Please select an organisation type and plan first.
-            </div>
-        );
-    }
     const tiers = data
         .filter(
             (p) =>

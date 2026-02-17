@@ -1,11 +1,12 @@
 'use client'
+
 import { useState } from 'react';
 import { Settings, ShoppingCart, Sparkles, TrendingUp, Shield, Zap, Users, Building2, ArrowRight, CheckCircle, Globe, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { GlobalNav } from '../components/GlobalNav';
-import { TrainingOrgPortal } from '../pages/TrainingOrgPortal';
+import { TrainingOrgPortal } from '../pages/TrainingOrganizationPortal/TrainingOrgPortal';
 import { AdminDashboard } from '../pages/AdminDashboard/AdminDashboard';
 import { PaymentPage } from '../pages/PaymentPage';
 import { useGetUserQuery } from '@/Redux/services/user';
@@ -17,6 +18,8 @@ import { CustomerPortal } from '../pages/CustomerPortal/CustomerPortal';
 import { SalesAgentPortal } from '../pages/SalesAgentPortal/SalesAgentPortal';
 import { CheckOutSummary } from './Types/homeTypes';
 import PricingProvider from '../pages/SalesAgentPortal/Components/PricingContext';
+import { useGetOrganizationQuery } from '@/Redux/services/Organization';
+import { useGenerateLinkMutation } from '@/Redux/services/ActiveQuotes';
 
 export type ViewType = 'home' | 'customer' | 'admin' | 'payment' | 'sales' | 'training-org';
 
@@ -24,12 +27,14 @@ export type ViewType = 'home' | 'customer' | 'admin' | 'payment' | 'sales' | 'tr
 export default function page() {
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [checkoutData, setCheckoutData] = useState<CheckOutSummary | null>(null);
-  const { data: agent, isLoading, error } = useGetUserQuery()
-
-  const handleProceedToPayment = (summary: CheckOutSummary) => {
+  const [selectedAddOns, setSelectedAddOns] = useState<any[]>([]);
+  const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery(); 
+  const [generateLink] = useGenerateLinkMutation() 
+  
+  const handleProceedToPayment = async (summary: CheckOutSummary) => {
+    console.log("Summary received in handleProceedToPayment:", summary);
     setCheckoutData(summary);
     setCurrentView('payment');
-    toast.success('Proceeding to secure checkout');
   };
 
   const handlePaymentComplete = () => {
@@ -48,20 +53,26 @@ export default function page() {
   };
 
 
+  const isLoading = agentLoading
+  const error = agentError 
+
+
   if (currentView === 'customer') {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <PricingProvider><CustomerPortal onBack={() => navigateTo('home')} onCheckout={handleProceedToPayment} /></PricingProvider>
+        <PricingProvider><CustomerPortal setAddOns={setSelectedAddOns} agent={agent} onBack={() => navigateTo('home')} onCheckout={handleProceedToPayment} /></PricingProvider>
       </>
     );
   }
-
   if (currentView === 'payment' && checkoutData) {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
         <PaymentPage
+        selAddon={selectedAddOns}
+          agent={agent}
+          agentRefetch={agentRefetch}
           summary={checkoutData}
           onBack={() => navigateTo('customer')}
           onComplete={handlePaymentComplete}
@@ -94,7 +105,7 @@ export default function page() {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <TrainingOrgPortal onBack={() => navigateTo('home')} />
+        <TrainingOrgPortal org={agent?.organization} onBack={() => navigateTo('home')} />
 
       </>
     );
@@ -107,15 +118,17 @@ export default function page() {
       </div>
     );
   }
-
-
-
   if (error && "status" in error) {
     return (
       <div className="text-red-500 h-screen flex items-center justify-center">
         Error {error.status}: {"error" in error ? error.error : "Something went wrong"}
       </div>
     );
+  }
+
+  if (agent?.role === "SUPER_ADMIN") {
+    setCurrentView('admin')
+    return null;
   }
 
   return (
@@ -217,57 +230,57 @@ export default function page() {
             </Card>}
 
             {/* Admin Dashboard Card */}
-            {agent?.role === 'SUPER_ADMIN' && <AdminCard currentView={setCurrentView} />}
+            {/* {agent?.role === 'SUPER_ADMIN' && <AdminCard currentView={setCurrentView} />} */}
           </div>
 
         </div>
 
-        {/* Training Org Portal - Full Width */}
-        {agent?.role === 'SALES_AGENT' && <Card
-          className="group mb-10 border-2 border-[#044866]/10 hover:border-[#044866]/30 hover:shadow-xl transition-all cursor-pointer overflow-hidden"
-          onClick={() => navigateTo('training-org')}
-        >
+        {agent?.organization && (
+          <Card
+            onClick={() => navigateTo('training-org')}
+            className="group mb-10 border-2 border-[#044866]/10 hover:border-[#044866]/30 hover:shadow-xl transition-all cursor-pointer overflow-hidden"
+          >
 
-          <CardContent className="p-8 relative">
-            <div className="flex items-start gap-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#044866]/10 to-[#0D5468]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border-2 border-[#044866]/20 shadow-md">
-                <Building2 className="w-8 h-8 text-[#044866]" />
-              </div>
-
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <h2 className="text-3xl text-[#044866]">Training Organisation Portal</h2>
-                  <Badge variant="outline" className="bg-[#F7A619]/10 text-[#F7A619] border-[#F7A619]/30">
-                    Credit & Invoice Tracking
-                  </Badge>
+            <CardContent className="p-8 relative">
+              <div className="flex items-start gap-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-[#044866]/10 to-[#0D5468]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border-2 border-[#044866]/20 shadow-md">
+                  <Building2 className="w-8 h-8 text-[#044866]" />
                 </div>
-                <p className="text-sm text-gray-600 mb-6 max-w-3xl">
-                  Comprehensive credit usage tracking with student-by-student breakdowns, invoice management,
-                  and payment history. Monitor your 1-credit-per-industry placement model in real-time.
-                </p>
 
-                <div className="grid md:grid-cols-4 gap-3">
-                  {[
-                    { icon: '📊', label: 'Detailed credit usage logs' },
-                    { icon: '👥', label: 'Student-by-student tracking' },
-                    { icon: '💳', label: 'Invoice & payment history' },
-                    { icon: '📥', label: 'Export reports to CSV' },
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2.5 text-xs text-gray-700 bg-[#044866]/5 px-4 py-3 rounded-lg hover:bg-[#044866]/10 transition-colors">
-                      <span className="text-base">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </div>
-                  ))}
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h2 className="text-3xl text-[#044866]">Training Organisation Portal</h2>
+                    <Badge variant="outline" className="bg-[#F7A619]/10 text-[#F7A619] border-[#F7A619]/30">
+                      Credit & Invoice Tracking
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-6 max-w-3xl">
+                    Comprehensive credit usage tracking with student-by-student breakdowns, invoice management,
+                    and payment history. Monitor your 1-credit-per-industry placement model in real-time.
+                  </p>
+
+                  <div className="grid md:grid-cols-4 gap-3">
+                    {[
+                      { icon: '📊', label: 'Detailed credit usage logs' },
+                      { icon: '👥', label: 'Student-by-student tracking' },
+                      { icon: '💳', label: 'Invoice & payment history' },
+                      { icon: '📥', label: 'Export reports to CSV' },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2.5 text-xs text-gray-700 bg-[#044866]/5 px-4 py-3 rounded-lg hover:bg-[#044866]/10 transition-colors">
+                        <span className="text-base">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-[#044866] group-hover:gap-3 transition-all font-medium">
+                  <span className="text-sm whitespace-nowrap">View Portal</span>
+                  <ArrowRight className="w-5 h-5" />
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 text-[#044866] group-hover:gap-3 transition-all font-medium">
-                <span className="text-sm whitespace-nowrap">View Portal</span>
-                <ArrowRight className="w-5 h-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>}
+            </CardContent>
+          </Card>)}
 
 
         {/* Platform Features */}

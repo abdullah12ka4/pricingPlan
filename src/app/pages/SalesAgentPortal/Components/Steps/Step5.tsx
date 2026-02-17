@@ -6,11 +6,12 @@ import { NetworkPackagesResponse } from '@/app/home/Types/homeTypes';
 import { Zap } from 'lucide-react'
 import { useState } from 'react'
 
-export default function Step5({data}:{data:NetworkPackagesResponse}) {
-    const [selectedNetworkPack, setSelectedNetworkPack] = useState<string | null>(null);
-    
+export default function Step5({ data }: { data: NetworkPackagesResponse }) {
+  console.log("NETWORK PACK SELECTER", data)
+  const [selectedNetworkPack, setSelectedNetworkPack] = useState<string | null>(null);
+
   return (
-       <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-gradient-to-br from-[#044866]/10 to-[#0D5468]/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Zap className="w-8 h-8 text-[#044866]" />
@@ -20,7 +21,7 @@ export default function Step5({data}:{data:NetworkPackagesResponse}) {
       </div>
 
       <div className="bg-white border border-[#044866]/10 rounded-2xl p-6 shadow-lg">
-        <NetworkPackSelector packs={data}/>
+        <NetworkPackSelector packs={data.data.packages} />
       </div>
 
       <div className="mt-4 text-center">

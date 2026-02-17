@@ -75,7 +75,7 @@ export const salesAgentApi = createApi({
       query: () => `/api/v1/analytics/metrics`,
       providesTags: ['DashboardAnalytics']
     })
-  })
+  })                                                                     
 })
 
 export const {

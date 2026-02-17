@@ -22,7 +22,6 @@ interface FormData {
 /* ---------------- COMPONENT ---------------- */
 
 export default function Organization({ data }: { data: Plan[] }) {
-  console.log(data)
   const { watch, setValue } = useFormContext<FormData>();
 
   const selectedOrgType = watch("organizationType");

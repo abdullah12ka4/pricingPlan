@@ -3,7 +3,8 @@ import Cookies from "js-cookie";
 
 
 export const header = fetchBaseQuery({ 
-    baseUrl: 'http://192.168.18.115:3000',
+    // baseUrl: 'https://barely-jokes-involve-apr.trycloudflare.com',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL,
     credentials: "include",
     prepareHeaders: (headers) => {
       const token = Cookies.get("accessToken");

@@ -9,24 +9,33 @@ import Step6 from '../SalesAgentPortal/Components/Steps/Step6';
 import { CheckoutSummary } from '@/app/components/pricing/CheckoutSummary';
 import { usePricing } from '../SalesAgentPortal/Components/PricingContext';
 import { Spinner } from '@/app/components/ui/spinner';
-import { useAddQuotesMutation } from '@/Redux/services/ActiveQuotes';
+import { useAddQuotesMutation, useGenerateLinkMutation, useGetQuotesQuery, useGetSpecificQuotesQuery, useUpdateQuotesMutation } from '@/Redux/services/ActiveQuotes';
 import { useGetAddOnsQuery } from '@/Redux/services/AddOns';
 import { useGetNetworkQuery } from '@/Redux/services/NetworkModal';
+
 
 interface CustomerPricingProps {
   onBack: () => void;
   onCheckout: (summary: any) => void;
+  agent?: any;
+  setAddOns: (selectedAddOns: any[]) => void;
 }
 
-export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
+export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: CustomerPricingProps) {
+    console.log("agent", agent)
   const { data: networkCreditPacks, isLoading: networkLoading } = useGetNetworkQuery();
   const { data: addOnData, isLoading: addOnLoading } = useGetAddOnsQuery();
-
-  const Pricing = usePricing();
-  const [checkoutData, setCheckoutData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const { data: quotesData, isLoading: quotesLoading } = useGetQuotesQuery({ agentId: agent?.id });
+  const { data: specificQuotesData, refetch, isLoading: specificQuotesLoading } = useGetSpecificQuotesQuery(quotesData?.data.quotes[0]?.id, {
+    skip: !quotesData?.data.quotes[0]?.id // Only fetch when quote ID exists
+  });
 
   const [addQuotes] = useAddQuotesMutation();
+  const [updateQuotes] = useUpdateQuotesMutation();
+
+  const Pricing = usePricing();
+
+  const [loading, setLoading] = useState(false);
 
   const methods = useForm({ mode: 'onChange' });
   const { watch } = methods;
@@ -37,10 +46,11 @@ export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
   const networkPack = watch('networkPack');
   const addOns = watch('addOns');
 
+
   const selectedTier = useMemo<any>(() => {
     if (!tier || !organizationType) return null;
     return Pricing.find(
-      (p:any) => p.id === tier && p.organisationType === organizationType
+      (p: any) => p.id === tier && p.organisationType === organizationType
     );
   }, [tier, organizationType, Pricing]);
 
@@ -48,7 +58,7 @@ export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
     if (!addOns || !addOnData) return [];
     return Object.entries(addOns)
       .map(([id, qty]: any) => {
-        const addon = addOnData.find((a:any) => a.id === qty.addonId);
+        const addon = addOnData.find((a: any) => a.id === qty.addonId);
         if (!addon) return null;
         return { ...addon, quantity: qty.quantity };
       })
@@ -58,9 +68,16 @@ export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
   const previewPayload = useMemo(() => {
     if (!organizationType || !tier || !networkPack || !selectedTier) return null;
     return {
+      clientInfo: {
+        name: agent?.name || '',
+        email: agent?.email || '',
+        phone: agent?.phoneNumber || '',
+        organization: agent?.organization?.name || '',
+      },
       organizationType,
       planType: plan,
       tierId: tier,
+      organizationId: agent?.organizationId,
       networkPackageId: networkPack,
       studentCount: selectedTier.maxStudents,
       addonItems: selectedAddOns.map(a => ({ addonId: a.id, quantity: a.quantity })),
@@ -68,15 +85,19 @@ export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
     };
   }, [organizationId, organizationType, plan, tier, networkPack, selectedAddOns]);
 
-  console.log(previewPayload)
   useEffect(() => {
     if (!previewPayload) return;
 
     const createQuote = async () => {
       try {
         setLoading(true);
-        const result = await addQuotes(previewPayload).unwrap();
-        setCheckoutData({ ...result, organization_id: organizationId });
+        if (specificQuotesData?.data) {
+          await updateQuotes({ id: specificQuotesData?.data.id, body: previewPayload }).unwrap();
+          await refetch();
+        } else {
+          await addQuotes(previewPayload).unwrap();
+        }
+        setAddOns(selectedAddOns.map(a => (a.id)))
       } catch (err) {
         console.error('Error creating quote:', err);
       } finally {
@@ -88,12 +109,12 @@ export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
   }, [previewPayload, organizationId, addQuotes]);
 
   const handleCheckout = () => {
-    if (checkoutData) onCheckout(checkoutData);
+    if (!specificQuotesData) return null;
+    onCheckout(specificQuotesData?.data);
   };
 
-  const isLoading = loading || networkLoading || addOnLoading;
+  const isLoading = loading || networkLoading || addOnLoading || quotesLoading || specificQuotesLoading;
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Spinner /></div>;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
       <div className="bg-white/80 backdrop-blur-sm border-b border-[#044866]/10 sticky top-0 z-40">
@@ -120,7 +141,7 @@ export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
             <Organization data={Pricing} />
             <Features />
 
-            {organizationId && <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm"><PricingTier data={Pricing} /></div>}
+         <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm"><PricingTier data={Pricing} /></div>
 
             {plan && networkCreditPacks && (
               <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm">
@@ -130,9 +151,9 @@ export function CustomerPortal({ onBack, onCheckout }: CustomerPricingProps) {
 
             {networkPack && addOnData && <Step6 data={addOnData} />}
 
-            {checkoutData && (
+            {specificQuotesData?.data && networkPack && (
               <div className="lg:fixed lg:top-20 lg:right-8 lg:w-80">
-                <CheckoutSummary summary={checkoutData.data} onCheckout={handleCheckout} />
+                <CheckoutSummary summary={specificQuotesData?.data} onCheckout={handleCheckout} />
               </div>
             )}
           </form>

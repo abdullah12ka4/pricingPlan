@@ -128,16 +128,8 @@ const processedData = Object.values(
                                             <h3 className="text-lg text-[#044866] mb-1">{org.organisationType}</h3>
                                             <p className="text-sm text-gray-600">{org.name}</p>
                                         </div>
-                                        <button
-                                            onClick={toggleEditing}
-                                            className="px-4 py-2 border border-[#044866]/20 text-[#044866] rounded-lg hover:bg-[#044866]/5 transition-all text-sm flex items-center gap-2"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                            {isEditing ? 'Cancel' : 'Edit Pricing'}
-                                        </button>
                                     </div>
 
-                                    {!isEditing ? (
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                                                 <div className="text-xs text-gray-600 mb-1">CRM Basic - Starting Price</div>
@@ -150,57 +142,7 @@ const processedData = Object.values(
                                                 </div>
                                                 <div className="text-2xl text-[#044866]">${org?.premiumPlan?.toLocaleString()}<span className="text-sm text-gray-600">/year</span></div>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <form
-                                            className="space-y-4"
-                                            onSubmit={(e) => {
-                                                e.preventDefault();
-                                                alert(`Pricing updated for ${org.organisationType}`);
-                                                toggleEditing();
-                                            }}
-                                        >
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-sm text-gray-700 mb-2">Basic Starting Price ($)</label>
-                                                    <input
-                                                        type="number"
-                                                        defaultValue={org.basicPlan}
-                                                        required
-                                                        min="0"
-                                                        step="100"
-                                                        className="w-full px-4 py-3 border border-[#044866]/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/30"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm text-gray-700 mb-2">Premium Starting Price ($)</label>
-                                                    <input
-                                                        type="number"
-                                                        defaultValue={org.premiumPlan}
-                                                        required
-                                                        min="0"
-                                                        step="100"
-                                                        className="w-full px-4 py-3 border border-[#044866]/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/30"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={toggleEditing}
-                                                    className="flex-1 px-4 py-2.5 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    type="submit"
-                                                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg transition-all"
-                                                >
-                                                    Save Changes
-                                                </button>
-                                            </div>
-                                        </form>
-                                    )}
+                                        </div>                                 
                                 </div>
                             </div>
                         </div>

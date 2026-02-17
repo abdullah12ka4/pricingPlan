@@ -5,7 +5,7 @@ import { useState } from 'react'
 
 export default function Features() {
       const [showFeatures, setShowFeatures] = useState(false);
-        const { data: features, isLoading, error } = useGetFeaturesQuery();
+        const { data: features } = useGetFeaturesQuery();
     return (
         <div>
             {/* Feature Comparison Toggle */}

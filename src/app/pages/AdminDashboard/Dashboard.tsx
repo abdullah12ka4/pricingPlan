@@ -31,6 +31,10 @@ export default function Dashboard({ view, setView }: { view: string, setView: (v
       </div>
     );
   }
+
+  console.log("analytics", data)
+  console.log("agentAnalytics", agentAnalytics)
+  console.log("quoteData", quoteData)
   const dashboardStats = data?.data
   const activeQuotes = quoteData.data.quotes
   const pendingQuotes = activeQuotes.filter(
@@ -103,12 +107,11 @@ export default function Dashboard({ view, setView }: { view: string, setView: (v
       {/* Quick Actions */}
       <div className="bg-white border border-[#044866]/10 rounded-xl p-5">
         <h3 className="text-base text-[#044866] mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'New Pricing Tier', icon: Plus, view: 'pricing-tiers' },
             { label: 'Create Add-on', icon: Package, view: 'add-ons' },
             { label: 'Add Sales Agent', icon: Users, view: 'sales-agents' },
-            { label: 'View Analytics', icon: BarChart3, view: 'analytics' }
           ].map((action, idx) => {
             const Icon = action.icon;
             return (

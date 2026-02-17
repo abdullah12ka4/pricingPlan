@@ -4,6 +4,8 @@ export function middleware(req: NextRequest) {
   const token = req.cookies.get("accessToken")?.value;
   const pathname = req.nextUrl.pathname;
 
+
+
   const isLoginPage = pathname === "/login";
 
   // ❌ Not logged in → redirect everything to login

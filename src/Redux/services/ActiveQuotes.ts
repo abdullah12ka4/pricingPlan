@@ -9,19 +9,41 @@ type GenerateLinkPayload = {
   };
 };
 
+type getQuotesArgs = {
+  agentId?: string,
+  id?:string
+}
 export const activeQuotesApi = createApi({
   reducerPath: 'activeQuotesApi',
   baseQuery: header,
   tagTypes: ["quotes"],
   endpoints: (builder) => ({
-    getQuotes: builder.query<any, string | void>({
-      query: (id) => `/api/v1/quotes?agentId=${id}`,
-      providesTags: (id) => [{ type: 'quotes', id }],
+    getQuotes: builder.query<any, getQuotesArgs | void>({
+      query: (args)=> {
+        if(!args){
+          return '/api/v1/quotes'
+        }
+        const {agentId, id} = args
+        let url = id ? `/api/v1/quotes/${id}` : `/api/v1/quotes`
+        if(agentId){
+           url += `?agentId=${agentId}`
+        } 
+        return url;    
+      },
+      providesTags: ["quotes"],
     }),
     addQuotes: builder.mutation({
       query: (body) => ({
         url: '/api/v1/quotes',
         method: 'POST',
+        body,
+      }),
+      invalidatesTags: ["quotes"]
+    }),
+    updateQuotes: builder.mutation({
+      query: ({ id, body }) => ({
+        url: `/api/v1/quotes/${id}`,
+        method: 'PATCH',
         body,
       }),
       invalidatesTags: ["quotes"]
@@ -58,6 +80,7 @@ export const activeQuotesApi = createApi({
 
 export const { useAddQuotesMutation,
   useGetQuotesQuery,
+  useUpdateQuotesMutation,
   useGetSpecificQuotesQuery,
   useGenerateLinkMutation,
   useApproveQuotesMutation,

@@ -2,7 +2,7 @@ import { ShoppingCart, ArrowRight } from 'lucide-react';
 
 
 export function CheckoutSummary({ summary , onCheckout}: any) {
-  console.log("Summary",summary)
+  console.log("Summary", summary)
   if(!summary) return null;
   return (
     <div className="bg-white border-2 border-[#044866]/10 rounded-xl p-5 sticky top-5 shadow-lg">

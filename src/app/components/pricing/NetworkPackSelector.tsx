@@ -1,16 +1,11 @@
 import { useFormContext } from 'react-hook-form';
 import { Check, Zap, Info, Clock, TrendingDown, AlertCircle, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
-import { NetworkPackagesResponse } from '@/app/home/Types/homeTypes';
-
-interface NetworkPackSelectorProps {
-  packs: NetworkPackagesResponse[];
-}
+import { NetworkPack } from '@/app/home/Types/homeTypes';
 
 export function NetworkPackSelector({
   packs,
-}: NetworkPackSelectorProps) {
-  console.log('Packs in  network', packs)
+}: { packs: NetworkPack[] }) {
   const { setValue, watch } = useFormContext();
   const selectedPack = watch('networkPack'); // Get the current value from the form state
 
@@ -98,7 +93,7 @@ export function NetworkPackSelector({
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {packs?.map((pack:any) => {
+          {packs?.map((pack: any) => {
             const savingsPercent = pack.id === 'small' ? 0 :
               pack.id === 'medium' ? 6 :
                 pack.id === 'large' ? 13 : 19;
@@ -108,8 +103,7 @@ export function NetworkPackSelector({
                 type='button'
                 key={pack.id}
                 onClick={() => handleSelectPack(pack.id)}
-                className={`p-4 border-2 rounded-xl text-left transition-all relative group hover:shadow-lg ${
-                  selectedPack === pack.id
+                className={`p-4 border-2 rounded-xl text-left transition-all relative group hover:shadow-lg ${selectedPack === pack.id
                     ? 'border-[#F7A619] bg-gradient-to-br from-[#F7A619]/10 to-[#F7A619]/5 shadow-lg shadow-[#F7A619]/20'
                     : 'border-gray-200 hover:border-[#F7A619]/30 bg-white'
                   }`}
@@ -168,7 +162,7 @@ export function NetworkPackSelector({
 
                 {/* Features */}
                 <div className="space-y-1.5">
-                  {pack.description?.split('\n').map((s:any) => s.trim()).filter(Boolean).slice(0, 3).map((service:any, idx:number) => (
+                  {pack.description?.split('\n').map((s: any) => s.trim()).filter(Boolean).slice(0, 3).map((service: any, idx: number) => (
                     <div key={idx} className="text-xs text-gray-700 flex items-start gap-2">
                       <Check className="w-3 h-3 text-[#F7A619] mt-0.5 flex-shrink-0" />
                       <span className="leading-tight">{service}</span>

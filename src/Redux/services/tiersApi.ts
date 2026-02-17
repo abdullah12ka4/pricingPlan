@@ -1,6 +1,5 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { header } from "../ApiHeader";
-import { TABLETYPE } from "@/app/pages/AdminDashboard/Components/PricingTiers/PricingTableFilters";
 
 export const tiersApi = createApi({
   reducerPath: 'tiersApi',
