@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { ArrowLeft, CreditCard, Building, Lock, Check, AlertCircle } from 'lucide-react';
 import { useAddOrganizationMutation, useUpdateOrganizationMutation } from '@/Redux/services/Organization';
-import { useAddSubscriptionMutation, useGetSubscriptionByOrgQuery, useGetSubscriptionQuery, useUpdateSubscriptionMutation } from '@/Redux/services/Subscription';
+import { useAddSubscriptionMutation, useDowngradeSubscriptionMutation, useGetSubscriptionByOrgQuery, useGetSubscriptionQuery, useUpdateSubscriptionMutation, useUpgradeSubscriptionMutation } from '@/Redux/services/Subscription';
 import { usePaymentIntentMutation } from '@/Redux/services/Payment';
+import { useCreataInvoiceMutation } from '@/Redux/services/Invoice';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { toast } from 'sonner'; // Import toast from sonner
@@ -37,15 +38,20 @@ const CARD_ELEMENT_OPTIONS = {
 };
 
 function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddon }: PaymentPageProps) {
+  console.log("summary", summary)
   console.log("agent", agent)
+  const paymentIntentCallCount = useRef(0);
   const stripe = useStripe();
   const elements = useElements();
   const { data: subscriptionData, isLoading: subscriptionLoading, error: subscriptionError } = useGetSubscriptionByOrgQuery(agent?.organizationId)
   const [addOrganization] = useAddOrganizationMutation();
   const [updateOrganization] = useUpdateOrganizationMutation();
+  const [upgradeSubscription] = useUpgradeSubscriptionMutation();
+  const [downgradeSubscription] = useDowngradeSubscriptionMutation();
   const [updateSubscription] = useUpdateSubscriptionMutation();
   const [addSubscription] = useAddSubscriptionMutation();
   const [paymentIntent] = usePaymentIntentMutation();
+  const [createInvoice] = useCreataInvoiceMutation();
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -75,7 +81,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
 
   useEffect(() => {
     if (!elements) return;
-
     const cardNumberElement = elements.getElement(CardNumberElement);
     const cardExpiryElement = elements.getElement(CardExpiryElement);
     const cardCvcElement = elements.getElement(CardCvcElement);
@@ -141,186 +146,280 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
     return errorMessages[errorCode] || 'Payment failed. Please check your card details and try again.';
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (!agreedToTerms) {
-    toast.error('Please agree to the terms and conditions');
-    return;
-  }
+    if (!agreedToTerms) {
+      toast.error('Please agree to the terms and conditions');
+      return;
+    }
 
-  // Validate required fields
-  if (!billingInfo.name || !billingInfo.abnAcn || !billingInfo.primaryContactName || 
-      !billingInfo.billingEmail || !billingInfo.contactPhone || !billingInfo.addressLine1 || 
+    // Validate required fields
+    if (!billingInfo.name || !billingInfo.abnAcn || !billingInfo.primaryContactName ||
+      !billingInfo.billingEmail || !billingInfo.contactPhone || !billingInfo.addressLine1 ||
       !billingInfo.city || !billingInfo.state || !billingInfo.postalCode) {
-    toast.error('Please fill in all required fields');
-    return;
-  }
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
-  setIsProcessing(true);
+    setIsProcessing(true);
 
-  try {
-    // Step 1: Save/Update organization
-    await handleOrganization();
+    try {
+      // Step 1: Save/Update organization
+      await handleOrganization();
 
-    let stripePaymentMethodId = '';
-    
-    // Check if subscription already exists
-    const hasExistingSubscription = subscriptionData && subscriptionData.length > 0;
+      let stripePaymentMethodId = '';
 
-    // Step 2: Handle payment based on method ONLY if it's a NEW subscription
-    if (!hasExistingSubscription && paymentMethod === 'card') {
-      if (!stripe || !elements) {
-        throw new Error('Stripe has not loaded yet');
-      }
+      // Check if subscription already exists
+      const hasExistingSubscription = subscriptionData && subscriptionData.length > 0;
 
-      if (cardErrors.cardNumber || cardErrors.cardExpiry || cardErrors.cardCvc) {
-        toast.error('Please fix card details errors before submitting');
-        setIsProcessing(false);
-        return;
-      }
+      // Step 2: Handle payment based on method ONLY if it's a NEW subscription
+      if (!hasExistingSubscription && paymentMethod === 'card') {
+        if (!stripe || !elements) {
+          throw new Error('Stripe has not loaded yet');
+        }
 
-      const cardNumberElement = elements.getElement(CardNumberElement);
-      if (!cardNumberElement) {
-        throw new Error('Card details not found');
-      }
+        if (cardErrors.cardNumber || cardErrors.cardExpiry || cardErrors.cardCvc) {
+          toast.error('Please fix card details errors before submitting');
+          setIsProcessing(false);
+          return;
+        }
 
-      const response = await paymentIntent({quoteId: summary?.id}).unwrap();
-      console.log("Intent Render", response)
-      
-      if (!response?.client_secret) {
-        toast.dismiss('payment-processing');
-        throw new Error('Failed to initialize payment');
-      }
+        const cardNumberElement = elements.getElement(CardNumberElement);
+        if (!cardNumberElement) {
+          throw new Error('Card details not found');
+        }
+        paymentIntentCallCount.current += 1;
 
-      const secret = response.client_secret;
-      const paymentId = response.payment_id;
+        const startTime = performance.now();
+        console.log("🔥 paymentIntent called:", paymentIntentCallCount.current);
 
-      toast.loading('Processing payment...', { id: 'payment-processing' });
+        const response = await paymentIntent({ quoteId: summary?.id }).unwrap();
 
-      const { error: stripeError, paymentIntent: confirmedIntent } =
-        await stripe.confirmCardPayment(secret, {
-          payment_method: {
-            card: cardNumberElement,
-            billing_details: {
-              name: cardholderName,
-              email: billingInfo.billingEmail,
-              phone: billingInfo.contactPhone,
-              address: {
-                line1: billingInfo.addressLine1,
-                city: billingInfo.city,
-                state: billingInfo.state,
-                postal_code: billingInfo.postalCode,
-                country: 'AU',
+        const endTime = performance.now();
+        console.log("⏱ paymentIntent time:", (endTime - startTime).toFixed(2), "ms");
+
+        console.log("✅ paymentIntent response:", response);
+
+        if (!response?.client_secret) {
+          toast.dismiss('payment-processing');
+          throw new Error('Failed to initialize payment');
+        }
+
+        const secret = response.client_secret;
+        const paymentId = response.payment_id;
+
+        toast.loading('Processing payment...', { id: 'payment-processing' });
+
+        const { error: stripeError, paymentIntent: confirmedIntent } =
+          await stripe.confirmCardPayment(secret, {
+            payment_method: {
+              card: cardNumberElement,
+              billing_details: {
+                name: cardholderName,
+                email: billingInfo.billingEmail,
+                phone: billingInfo.contactPhone,
+                address: {
+                  line1: billingInfo.addressLine1,
+                  city: billingInfo.city,
+                  state: billingInfo.state,
+                  postal_code: billingInfo.postalCode,
+                  country: 'AU',
+                },
               },
             },
-          },
-        });
+          });
 
-      toast.dismiss('payment-processing');
+        toast.dismiss('payment-processing');
 
-      if (stripeError) {
-        toast.error(stripeError.message || 'Payment failed');
-        setIsProcessing(false);
-        return;
+        if (stripeError) {
+          toast.error(stripeError.message || 'Payment failed');
+          setIsProcessing(false);
+          return;
+        }
+
+        if (confirmedIntent?.status !== 'succeeded') {
+          toast.error('Payment not successful.');
+          setIsProcessing(false);
+          return;
+        }
+
+        stripePaymentMethodId = paymentId;
+      } else if (!hasExistingSubscription && paymentMethod === 'bank') {
+        // Construct Invoice Items from Summary
+        const invoiceItems = [];
+
+        // Plan
+        if (summary?.pricing_tier) {
+          invoiceItems.push({
+            itemType: 'tier',
+            description: `CRM ${summary?.plan_type === 'BASIC' ? 'Basic' : 'Premium'} - Annual License`,
+            quantity: 1,
+            unitPrice: summary.pricing_tier.annual_price,
+            totalPrice: summary.pricing_tier.annual_price
+          });
+        }
+
+        // Setup Fee
+        if (summary?.setupFee > 0) {
+          invoiceItems.push({
+            itemType: 'setup_fee',
+            description: 'Setup Fee',
+            quantity: 1,
+            unitPrice: summary.setupFee,
+            totalPrice: summary.setupFee
+          });
+        }
+
+        // Network Package
+        if (summary?.network_package) {
+          invoiceItems.push({
+            itemType: 'network_package',
+            description: `${summary.network_package.name} Credits`,
+            quantity: 1,
+            unitPrice: summary.network_package.total_cost,
+            totalPrice: summary.network_package.total_cost
+          });
+        }
+
+        // Addons
+        if (summary?.items?.length > 0) {
+          summary.items.forEach((item: any) => {
+            invoiceItems.push({
+              itemType: 'addon',
+              description: item.name,
+              quantity: 1,
+              unitPrice: item.total_price,
+              totalPrice: item.total_price
+            });
+          });
+        }
+
+        // Calculate Subtotal
+        const subtotal = invoiceItems.reduce((acc, item) => acc + item.totalPrice, 0);
+
+        // Current Date for Due Date and Billing Start
+        const now = new Date();
+        const oneYearLater = new Date(now);
+        oneYearLater.setFullYear(now.getFullYear() + 1);
+
+        const invoicePayload = {
+          organizationId: agent?.organization?.id, // from handleOrganization()
+          subtotal: subtotal,
+          dueDate: now.toISOString(),
+          billingPeriodStart: now.toISOString(),
+          billingPeriodEnd: oneYearLater.toISOString(),
+          notes: 'Generated via Bank Transfer checkout',
+          gstRate: 10,
+          items: invoiceItems
+        };
+
+        console.log('Creating Invoice for Bank Transfer:', invoicePayload);
+
+        const res = await createInvoice(invoicePayload).unwrap();
+        console.log("RSPONSE", res)
+
+        toast.success('Invoice created successfully');
       }
 
-      if (confirmedIntent?.status !== 'succeeded') {
-        toast.error('Payment not successful.');
-        setIsProcessing(false);
-        return;
-      }
+      // Step 3: Create or Update subscription
+      if (hasExistingSubscription) {
+        // UPDATE existing subscription
+        const existingSub = subscriptionData[0];
+        console.log("EXISTING SUB", existingSub)
+        const isUpgrade = summary?.totals?.total_amount > existingSub.annual_price;
+        console.log("IS UPGRADE", isUpgrade)
 
-      stripePaymentMethodId = paymentId;
-    }
+        if (isUpgrade) {
+          const upgradePayload = {
+            id: existingSub.id,
+            body:{
+              new_pricing_tier_id: summary?.pricing_tier?.id,
+              new_plan_type: summary?.plan_type,
+              additional_addon_ids: selAddon,
+              effective_date: "immediate"
+            }
+          }
+          // Call upgrade endpoint — charges pro-rata difference
+          // Still need Stripe payment for the net_charge amount
+          const res =await upgradeSubscription(upgradePayload).unwrap();
+          console.log("Upgrade", res)
+          // Backend returns net_charge → process that payment via Stripe
 
-    // Step 3: Create or Update subscription
-    if (hasExistingSubscription) {
-      // UPDATE existing subscription
-      const existingSubId = subscriptionData[0].id; // Get the first subscription ID
-      
-      const updatePayload = {
-        organization_id: agent?.organization?.id || existingOrganization?.id,
-        quote_id: summary?.id,
-        plan_type: summary?.plan_type,
-        pricing_tier_id: summary?.pricing_tier?.id,
-        network_package_id: summary?.network_package?.id,
-        addon_ids: selAddon || [],
-        billing_cycle: 'annual',
-        auto_renew: true,
-        // Don't include payment details for update
-      };
+        } else {
+          // Downgrade — schedule for renewal, no payment needed now
+         const res = await downgradeSubscription({
+            id: existingSub.id,
+            body: {
+              new_pricing_tier_id: summary?.pricing_tier?.id,
+              new_plan_type: summary?.plan_type,
+              remove_addon_ids: [],
+              reason: "Customer requested downgrade"
+            }
+          }).unwrap();
+          console.log("Downgrade", res)
+          toast.success('Downgrade scheduled for your renewal date');
+        }
 
-      const subscriptionResponse = await updateSubscription({
-        id: existingSubId,
-        body: updatePayload
-      }).unwrap();
-      
-      console.log('Subscription Updated:', subscriptionResponse);
-      
-      toast.success('Subscription updated successfully!', {
-        description: 'Your subscription changes are now active.'
-      });
-      
-    } else {
-      // CREATE new subscription
-      const subscriptionPayload = {
-        organization_id: agent?.organization?.id || existingOrganization?.id,
-        quote_id: summary?.id,
-        plan_type: summary?.plan_type,
-        pricing_tier_id: summary?.pricing_tier?.id,
-        network_package_id: summary?.network_package?.id,
-        addon_ids: selAddon || [],
-        start_date: summary?.created_at || new Date().toISOString(),
-        billing_cycle: 'annual',
-        auto_renew: true,
-        payment_method: paymentMethod,
-        payment_details: {
-          stripe_payment_method_id: paymentMethod === 'card' ? stripePaymentMethodId : 'pending_bank_transfer',
-        },
-      };
-
-      const subscriptionResponse = await addSubscription(subscriptionPayload).unwrap();
-      console.log('Subscription Created:', subscriptionResponse);
-
-      if (paymentMethod === 'card') {
-        toast.success('Payment processed successfully!', {
-          description: 'Your subscription is now active.'
-        });
       } else {
-        toast.success('Order placed successfully!', {
-          description: 'You will receive an invoice via email with bank transfer details.'
-        });
+        // CREATE new subscription
+        const subscriptionPayload = {
+          organization_id: agent?.organization?.id || existingOrganization?.id,
+          quote_id: summary?.id,
+          plan_type: summary?.plan_type,
+          pricing_tier_id: summary?.pricing_tier?.id,
+          network_package_id: summary?.network_package?.id,
+          addon_ids: selAddon || [],
+          start_date: summary?.created_at || new Date().toISOString(),
+          billing_cycle: 'annual',
+          auto_renew: true,
+          payment_method: paymentMethod,
+          payment_details: {
+            stripe_payment_method_id: paymentMethod === 'card' ? stripePaymentMethodId : 'pending_bank_transfer',
+          },
+        };
+
+        const subscriptionResponse = await addSubscription(subscriptionPayload).unwrap();
+        console.log('Subscription Created:', subscriptionResponse);
+
+        if (paymentMethod === 'card') {
+          toast.success('Payment processed successfully!', {
+            description: 'Your subscription is now active.'
+          });
+        } else {
+          toast.success('Order placed successfully!', {
+            description: 'You will receive an invoice via email with bank transfer details.'
+          });
+        }
       }
+
+      onComplete();
+
+    } catch (err: any) {
+      console.error('Payment error:', err);
+
+      let errorMessage = 'Something went wrong. Please try again.';
+      let errorDescription = undefined;
+
+      if (err.message) {
+        errorMessage = err.message;
+      }
+
+      if (err.data?.message) {
+        errorMessage = err.data.message;
+      }
+
+      if (err.data?.errors) {
+        errorDescription = Object.values(err.data.errors).flat().join(', ');
+      }
+
+      toast.error(errorMessage, {
+        description: errorDescription,
+      });
+    } finally {
+      setIsProcessing(false);
     }
-
-    onComplete();
-    
-  } catch (err: any) {
-    console.error('Payment error:', err);
-    
-    let errorMessage = 'Something went wrong. Please try again.';
-    let errorDescription = undefined;
-
-    if (err.message) {
-      errorMessage = err.message;
-    }
-
-    if (err.data?.message) {
-      errorMessage = err.data.message;
-    }
-
-    if (err.data?.errors) {
-      errorDescription = Object.values(err.data.errors).flat().join(', ');
-    }
-
-    toast.error(errorMessage, {
-      description: errorDescription,
-    });
-  } finally {
-    setIsProcessing(false);
-  }
-};
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
       {/* Header */}
@@ -488,8 +587,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                     }}
                     disabled={isProcessing}
                     className={`p-3.5 border-2 rounded-lg text-left transition-all ${paymentMethod === 'card'
-                        ? 'border-[#044866] bg-[#044866]/5'
-                        : 'border-gray-200 hover:border-[#044866]/30'
+                      ? 'border-[#044866] bg-[#044866]/5'
+                      : 'border-gray-200 hover:border-[#044866]/30'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -509,8 +608,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                     }}
                     disabled={isProcessing}
                     className={`p-3.5 border-2 rounded-lg text-left transition-all ${paymentMethod === 'bank'
-                        ? 'border-[#044866] bg-[#044866]/5'
-                        : 'border-gray-200 hover:border-[#044866]/30'
+                      ? 'border-[#044866] bg-[#044866]/5'
+                      : 'border-gray-200 hover:border-[#044866]/30'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -539,8 +638,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <div>
                       <label className="block text-sm text-gray-700 mb-1.5">Card Number *</label>
                       <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardNumber
-                          ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
-                          : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
+                        ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
+                        : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
                         }`}>
                         <CardNumberElement options={CARD_ELEMENT_OPTIONS} />
                       </div>
@@ -556,8 +655,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <div>
                         <label className="block text-sm text-gray-700 mb-1.5">Expiry Date *</label>
                         <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardExpiry
-                            ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
-                            : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
+                          ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
+                          : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
                           }`}>
                           <CardExpiryElement options={CARD_ELEMENT_OPTIONS} />
                         </div>
@@ -572,8 +671,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <div>
                         <label className="block text-sm text-gray-700 mb-1.5">CVC *</label>
                         <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardCvc
-                            ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
-                            : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
+                          ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
+                          : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
                           }`}>
                           <CardCvcElement options={CARD_ELEMENT_OPTIONS} />
                         </div>

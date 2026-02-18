@@ -29,7 +29,8 @@ export const paymentApi = createApi({
         method: 'POST',
         body
       }),
-      invalidatesTags: ['payment'],
+      invalidatesTags: ['payment'], 
+      extraOptions: { maxRetries: 0 }
     }),
   })
 })

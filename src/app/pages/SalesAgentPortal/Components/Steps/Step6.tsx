@@ -1,3 +1,5 @@
+'use client'
+
 import { useFormContext } from 'react-hook-form';
 import { AddOnCard } from '@/app/components/pricing/AddOnCard';
 import { Spinner } from '@/app/components/ui/spinner';
@@ -5,12 +7,18 @@ import { useGetAddOnsQuery } from '@/Redux/services/AddOns';
 import { Package } from 'lucide-react';
 import { AddOn, AddOnItem } from '@/app/pages/AdminDashboard/Types/AdminType';
 import type { SalesWizardForm } from '../../SalesAgentPortal'; // adjust path
+import { useEffect } from 'react';
 
-export default function Step6({data}:{data: AddOn[]}) {
+export default function Step6({data, existingAddOn}:{data: AddOn[], existingAddOn: any}) {
+  console.log("AddOndata", data)
+
+  console.log("existingAddOn", existingAddOn)
   const { watch, setValue } = useFormContext<SalesWizardForm>();
 
   const selectedPlan = watch('plan');
   const addOnItems = (watch('addOns') ?? []) as AddOnItem[];
+  console.log("ITEMS",addOnItems)
+
 
   const handleAddOnToggle = (addOnId: string) => {
     const existingIndex = addOnItems.findIndex(

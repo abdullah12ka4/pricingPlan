@@ -5,14 +5,21 @@ export const InvoiceApi = createApi({
   reducerPath: 'InvoiceApi',
   baseQuery: header,
   tagTypes: ["Invoice"],
-  endpoints: (builder) => ({    
+  endpoints: (builder) => ({
     getInvoice: builder.query<any, void>({
       query: () => '/api/v1/invoices',
       providesTags: ["Invoice"]
-    }),  
+    }),
+    creataInvoice: builder.mutation({
+      query: (body) => ({
+        url: `api/v1/invoices`,
+        method: "POST",
+        body
+      }),
+      invalidatesTags: ["Invoice"]
+    })
   }),
 })
 
 
-
-export const { useGetInvoiceQuery } = InvoiceApi
+export const { useGetInvoiceQuery, useCreataInvoiceMutation } = InvoiceApi

@@ -12,6 +12,7 @@ import { Spinner } from '@/app/components/ui/spinner';
 import { useAddQuotesMutation, useGenerateLinkMutation, useGetQuotesQuery, useGetSpecificQuotesQuery, useUpdateQuotesMutation } from '@/Redux/services/ActiveQuotes';
 import { useGetAddOnsQuery } from '@/Redux/services/AddOns';
 import { useGetNetworkQuery } from '@/Redux/services/NetworkModal';
+import { useGetSubscriptionByOrgQuery } from '@/Redux/services/Subscription';
 
 
 interface CustomerPricingProps {
@@ -29,11 +30,13 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
   const { data: specificQuotesData, refetch, isLoading: specificQuotesLoading } = useGetSpecificQuotesQuery(quotesData?.data.quotes[0]?.id, {
     skip: !quotesData?.data.quotes[0]?.id // Only fetch when quote ID exists
   });
+   const { data: subscriptionData, isLoading: subscriptionLoading, error: subscriptionError } = useGetSubscriptionByOrgQuery(agent?.organizationId)
 
   const [addQuotes] = useAddQuotesMutation();
   const [updateQuotes] = useUpdateQuotesMutation();
 
   const Pricing = usePricing();
+
 
   const [loading, setLoading] = useState(false);
 
@@ -112,8 +115,7 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
     if (!specificQuotesData) return null;
     onCheckout(specificQuotesData?.data);
   };
-
-  const isLoading = loading || networkLoading || addOnLoading || quotesLoading || specificQuotesLoading;
+  const isLoading = loading || networkLoading || addOnLoading || quotesLoading || specificQuotesLoading || subscriptionLoading;
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Spinner /></div>;
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
@@ -138,7 +140,7 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
 
         <FormProvider {...methods}>
           <form>
-            <Organization data={Pricing} />
+            <Organization data={Pricing}  />
             <Features />
 
          <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm"><PricingTier data={Pricing} /></div>
@@ -149,7 +151,7 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
               </div>
             )}
 
-            {networkPack && addOnData && <Step6 data={addOnData} />}
+            {networkPack && addOnData && <Step6 data={addOnData} existingAddOn={subscriptionData[0]?.addons}/>}
 
             {specificQuotesData?.data && networkPack && (
               <div className="lg:fixed lg:top-20 lg:right-8 lg:w-80">

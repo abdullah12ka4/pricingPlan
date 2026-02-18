@@ -40,19 +40,15 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
   }
   const [showProfile, setShowProfile] = useState(false);
   const router = useRouter();
-  const { data, isLoading: notificationLoading, error } = useGetNotificationQuery({ userId: agent?.id, isRead: undefined });
+  const { data:notifications, isLoading: notificationLoading, error } = useGetNotificationQuery({ userId: agent?.id, isRead: undefined });
   const { data: quotesData, isLoading: quotesLoading } = useGetQuotesQuery({ agentId: agent?.id })
   const [readNotification] = useReadNotificationMutation();
-  console.log("Notification",data)
-
   const handleLogOut = () => {
     Cookies.remove('accessToken');
     toast.success('Logged out');
     router.push('/login');
   };
-
-  console.log("QUotes Data on Navbar", quotesData)
-  console.log("Notification Data on Navbar", data)
+  console.log("Notifications", notifications)
 
   const isLoading = notificationLoading || quotesLoading;
 
@@ -77,9 +73,7 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
       </div>
     );
   }
-
-  const notifications = data?.data?.notifications || [];
-  const unreadNotifications = notifications.filter((n: any) => n.is_read === false);
+  const unreadNotifications = notifications?.filter((n: any) => n.isRead === false);
   const handleView = async (id: string) => {
     try {
       const res = await readNotification(id).unwrap();
@@ -87,8 +81,13 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
     } catch (error) {
       console.log(error)
     }
+
   }
-  return (
+  const handleConnect = (id: string)=>{
+    const same = notifications?.filter((n: any) => n.id === id);
+    console.log("Same", same)
+  }
+   return (
     <header className="sticky top-0 z-50 border-b border-[#044866]/10 bg-white/80 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
         {/* Sidebar + Logo */}
@@ -154,15 +153,16 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
                        <button
                         type="button"
                         onClick={(e) => {
+                          handleConnect(n.id)
                           e.stopPropagation();
                           handleView(n.id);
                         }}
                       >
-                        {n.is_read ? <MailOpen className="w-4 h-4 text-gray-600" /> : <Mail className="w-4 h-4 text-gray-600" />}
+                        {n.isRead ? <MailOpen className="w-4 h-4 text-gray-600" /> : <Mail className="w-4 h-4 text-gray-600" />}
                       </button>
                     </div>
                     <span className="text-xs text-gray-500">
-                      {timeAgo(n.created_at)}
+                      {timeAgo(n.createdAt)}
                     </span>
                   </DropdownMenuItem>
                 ))}

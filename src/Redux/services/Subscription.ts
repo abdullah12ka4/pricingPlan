@@ -44,6 +44,22 @@ export const subscriptionApi = createApi({
         body
       }),
       invalidatesTags: ["subscription"],
+    }),
+    upgradeSubscription: builder.mutation<any, any>({
+      query: ({id, body})=> ({
+        url: `api/v1/api/subscriptions/${id}/upgrade`,
+        method: `POST`,
+        body
+      }),
+      invalidatesTags: ["subscription"],
+    }),
+    downgradeSubscription: builder.mutation<any, any>({
+      query: ({id, body})=> ({
+        url: `api/v1/api/subscriptions/${id}/downgrade`,
+        method: `POST`,
+        body
+      }),
+      invalidatesTags: ["subscription"],
     })
   })
 }) 
@@ -52,5 +68,7 @@ export const {
     useGetSubscriptionQuery ,
     useAddSubscriptionMutation,
     useGetSubscriptionByOrgQuery,
-    useUpdateSubscriptionMutation
+    useUpdateSubscriptionMutation,
+    useUpgradeSubscriptionMutation,
+    useDowngradeSubscriptionMutation
 } = subscriptionApi

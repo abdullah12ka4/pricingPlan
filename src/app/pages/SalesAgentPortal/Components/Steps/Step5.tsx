@@ -1,12 +1,12 @@
 'use client'
 
 import { NetworkPackSelector } from '@/app/components/pricing/NetworkPackSelector'
-import { NetworkPackagesResponse } from '@/app/home/Types/homeTypes';
+import { NetworkPack } from '@/app/home/Types/homeTypes'
 
 import { Zap } from 'lucide-react'
 import { useState } from 'react'
 
-export default function Step5({ data }: { data: NetworkPackagesResponse }) {
+export default function Step5({ data }: { data: NetworkPack[] }) {
   console.log("NETWORK PACK SELECTER", data)
   const [selectedNetworkPack, setSelectedNetworkPack] = useState<string | null>(null);
 
@@ -21,7 +21,7 @@ export default function Step5({ data }: { data: NetworkPackagesResponse }) {
       </div>
 
       <div className="bg-white border border-[#044866]/10 rounded-2xl p-6 shadow-lg">
-        <NetworkPackSelector packs={data.data.packages} />
+        <NetworkPackSelector packs={data} />
       </div>
 
       <div className="mt-4 text-center">

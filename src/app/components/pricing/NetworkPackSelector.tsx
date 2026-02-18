@@ -1,8 +1,19 @@
 import { useFormContext } from 'react-hook-form';
 import { Check, Zap, Info, Clock, TrendingDown, AlertCircle, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
-import { NetworkPack } from '@/app/home/Types/homeTypes';
+import { BillingCycle } from '@/app/types/pricing';
 
+
+export type NetworkPack = {
+  id: string;
+  name: string;
+  credits: number;
+  pricePerCredit: number;
+  totalPrice: number;
+  autoCalculate: boolean;
+  description: string;
+  billingCycle: BillingCycle;
+}
 export function NetworkPackSelector({
   packs,
 }: { packs: NetworkPack[] }) {

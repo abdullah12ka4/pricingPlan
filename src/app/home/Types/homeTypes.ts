@@ -10,11 +10,6 @@ export type NetworkPack = {
   description: string;
   billingCycle: BillingCycle;
 }
-export interface NetworkPackagesResponse {
-  data: {
-    packages: NetworkPack[];
-  };
-}
 
 export interface CheckOutSummary {
   selectedPlan: PlanType;
