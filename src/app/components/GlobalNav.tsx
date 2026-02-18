@@ -43,6 +43,7 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
   const { data, isLoading: notificationLoading, error } = useGetNotificationQuery({ userId: agent?.id, isRead: undefined });
   const { data: quotesData, isLoading: quotesLoading } = useGetQuotesQuery({ agentId: agent?.id })
   const [readNotification] = useReadNotificationMutation();
+  console.log("Notification",data)
 
   const handleLogOut = () => {
     Cookies.remove('accessToken');
@@ -77,7 +78,7 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
     );
   }
 
-  const notifications = data?.data.notifications || [];
+  const notifications = data?.data?.notifications || [];
   const unreadNotifications = notifications.filter((n: any) => n.is_read === false);
   const handleView = async (id: string) => {
     try {
