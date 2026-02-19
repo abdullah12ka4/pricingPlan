@@ -9,7 +9,7 @@ import { AddOn, AddOnItem } from '@/app/pages/AdminDashboard/Types/AdminType';
 import type { SalesWizardForm } from '../../SalesAgentPortal'; // adjust path
 import { useEffect } from 'react';
 
-export default function Step6({data, existingAddOn}:{data: AddOn[], existingAddOn: any}) {
+export default function Step6({data, existingAddOn}:{data: AddOn[], existingAddOn?: any}) {
   console.log("AddOndata", data)
 
   console.log("existingAddOn", existingAddOn)

@@ -357,7 +357,7 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
       case 'network':
         return <Step5 data={networkCredit || []} />; // ✅ Fixed typo
       case 'addons':
-        return <Step6 data={addonData || []} />;
+        return <Step6 data={addonData || []}/>;
       case 'discount':
         return <Step7 />;
       case 'review':
