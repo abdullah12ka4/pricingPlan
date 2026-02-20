@@ -48,8 +48,6 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
     toast.success('Logged out');
     router.push('/login');
   };
-  console.log("Notifications", notifications)
-
   const isLoading = notificationLoading || quotesLoading;
 
   if (isLoading) {

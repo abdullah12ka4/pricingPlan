@@ -18,6 +18,7 @@ interface PaymentPageProps {
   agent: any;
   agentRefetch: () => void;
   selAddon: any;
+  unselAddon?: any;
 }
 
 // Stripe card input styling
@@ -37,9 +38,7 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
-function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddon }: PaymentPageProps) {
-  console.log("summary", summary)
-  console.log("agent", agent)
+function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddon, unselAddon }: PaymentPageProps) {
   const paymentIntentCallCount = useRef(0);
   const stripe = useStripe();
   const elements = useElements();
@@ -247,10 +246,11 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
         stripePaymentMethodId = paymentId;
       } else if (!hasExistingSubscription && paymentMethod === 'bank') {
         // Construct Invoice Items from Summary
-        const invoiceItems = [];
+        const invoiceItems: any[] = [];
 
         // Plan
         if (summary?.pricing_tier) {
+          console.log("Summmary on Pricing Tier", summary)
           invoiceItems.push({
             itemType: 'tier',
             description: `CRM ${summary?.plan_type === 'BASIC' ? 'Basic' : 'Premium'} - Annual License`,
@@ -321,7 +321,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
 
         toast.success('Invoice created successfully');
       }
-
       // Step 3: Create or Update subscription
       if (hasExistingSubscription) {
         // UPDATE existing subscription
@@ -333,7 +332,7 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
         if (isUpgrade) {
           const upgradePayload = {
             id: existingSub.id,
-            body:{
+            body: {
               new_pricing_tier_id: summary?.pricing_tier?.id,
               new_plan_type: summary?.plan_type,
               additional_addon_ids: selAddon,
@@ -342,59 +341,58 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
           }
           // Call upgrade endpoint — charges pro-rata difference
           // Still need Stripe payment for the net_charge amount
-          const res =await upgradeSubscription(upgradePayload).unwrap();
+          console.log("Upgrade Payload", upgradePayload)
+          const res = await upgradeSubscription(upgradePayload).unwrap();
           console.log("Upgrade", res)
           // Backend returns net_charge → process that payment via Stripe
 
         } else {
           // Downgrade — schedule for renewal, no payment needed now
-         const res = await downgradeSubscription({
+          const downgradePayload = {
             id: existingSub.id,
             body: {
               new_pricing_tier_id: summary?.pricing_tier?.id,
               new_plan_type: summary?.plan_type,
-              remove_addon_ids: [],
-              reason: "Customer requested downgrade"
+              remove_addon_ids: unselAddon,
             }
-          }).unwrap();
+          }
+          console.log("Downgrade Payload", downgradePayload)
+          const res = await downgradeSubscription(downgradePayload).unwrap();
           console.log("Downgrade", res)
           toast.success('Downgrade scheduled for your renewal date');
         }
 
       } else {
-        // CREATE new subscription
-        const subscriptionPayload = {
-          organization_id: agent?.organization?.id || existingOrganization?.id,
-          quote_id: summary?.id,
-          plan_type: summary?.plan_type,
-          pricing_tier_id: summary?.pricing_tier?.id,
-          network_package_id: summary?.network_package?.id,
-          addon_ids: selAddon || [],
-          start_date: summary?.created_at || new Date().toISOString(),
-          billing_cycle: 'annual',
-          auto_renew: true,
-          payment_method: paymentMethod,
-          payment_details: {
-            stripe_payment_method_id: paymentMethod === 'card' ? stripePaymentMethodId : 'pending_bank_transfer',
-          },
-        };
+        if (paymentMethod !== 'bank') {
+          const subscriptionPayload = {
+            organization_id: agent?.organization?.id || existingOrganization?.id,
+            quote_id: summary?.id,
+            plan_type: summary?.plan_type,
+            pricing_tier_id: summary?.pricing_tier?.id,
+            network_package_id: summary?.network_package?.id,
+            addon_ids: selAddon || [],
+            start_date: summary?.created_at || new Date().toISOString(),
+            billing_cycle: 'annual',
+            auto_renew: true,
+            payment_method: paymentMethod,
+            payment_details: {
+              stripe_payment_method_id: stripePaymentMethodId,
+            },
+          };
 
-        const subscriptionResponse = await addSubscription(subscriptionPayload).unwrap();
-        console.log('Subscription Created:', subscriptionResponse);
+          const subscriptionResponse = await addSubscription(subscriptionPayload).unwrap();
+          console.log('Subscription Created:', subscriptionResponse);
 
-        if (paymentMethod === 'card') {
           toast.success('Payment processed successfully!', {
             description: 'Your subscription is now active.'
-          });
-        } else {
-          toast.success('Order placed successfully!', {
-            description: 'You will receive an invoice via email with bank transfer details.'
-          });
+            // CREATE new subscription
+
+          })
         }
+
+        onComplete();
+
       }
-
-      onComplete();
-
     } catch (err: any) {
       console.error('Payment error:', err);
 

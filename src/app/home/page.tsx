@@ -28,8 +28,8 @@ export default function page() {
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [checkoutData, setCheckoutData] = useState<CheckOutSummary | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<any[]>([]);
-  const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery(); 
-  const [generateLink] = useGenerateLinkMutation() 
+  const [unselAddon, setUnselAddon] = useState<any[]>([]);
+  const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery();  
   
   const handleProceedToPayment = async (summary: CheckOutSummary) => {
     console.log("Summary received in handleProceedToPayment:", summary);
@@ -61,7 +61,7 @@ export default function page() {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <PricingProvider><CustomerPortal setAddOns={setSelectedAddOns} agent={agent} onBack={() => navigateTo('home')} onCheckout={handleProceedToPayment} /></PricingProvider>
+        <PricingProvider><CustomerPortal setAddOns={setSelectedAddOns} unselAddon={setUnselAddon}  agent={agent} onBack={() => navigateTo('home')} onCheckout={handleProceedToPayment} /></PricingProvider>
       </>
     );
   }
@@ -69,7 +69,7 @@ export default function page() {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <PaymentPage
+        <PaymentPage        
         selAddon={selectedAddOns}
           agent={agent}
           agentRefetch={agentRefetch}

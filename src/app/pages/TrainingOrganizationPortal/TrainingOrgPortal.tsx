@@ -23,7 +23,7 @@ import { useGetOrganizationQuery } from '@/Redux/services/Organization';
 import { useGetOrgBalanceQuery, useUsageCreditQuery } from '@/Redux/services/NetworkModal';
 import { Spinner } from '@/app/components/ui/spinner';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { useGetInvoiceQuery } from '@/Redux/services/Invoice';
+import { useGetInvoiceByOrgIdQuery, useGetInvoiceQuery } from '@/Redux/services/Invoice';
 
 interface TrainingOrgPortalProps {
     onBack: () => void;
@@ -273,8 +273,40 @@ export function TrainingOrgPortal({ onBack, org }: TrainingOrgPortalProps) {
     const [filterDateRange, setFilterDateRange] = useState('all');
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
     const [expandedQuarters, setExpandedQuarters] = useState<string[]>([]); // Will be set after data loads
+    const { data: invoiceData, isLoading: isLoadingInvoice } = useGetInvoiceByOrgIdQuery(org?.id);
     const [invoiceSearch, setInvoiceSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    const mapInvoices = (apiInvoices: any[]) => {
+        return apiInvoices?.map((inv: any) => ({
+            id: inv.invoiceNumber,
+            description: inv.items?.[0]?.description || '',
+
+            lineItems: inv.items.map((item: any) => ({
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: Number(item.unitPrice),
+                amount: Number(item.totalPrice),
+            })),
+
+            subtotal: Number(inv.subtotal),
+            tax: Number(inv.gstAmount),
+            taxRate: Number(inv.gstRate),
+            amount: Number(inv.totalAmount),
+
+            issueDate: inv.issuedDate,
+            dueDate: inv.dueDate,
+            paidDate: inv.paidDate,
+
+            status: inv.status?.toLowerCase(),
+
+            paymentMethod: inv.paymentMethod || '',
+            paymentReference: inv.paymentReference || '',
+            notes: inv.notes || '',
+        }));
+    };
+
+    const mockInvoices = mapInvoices(invoiceData);
+
     const [selectedInvoice, setSelectedInvoice] = useState<typeof mockInvoices[0] | null>(null);
     const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
     const [showCreditRefillDialog, setShowCreditRefillDialog] = useState(false);
@@ -290,7 +322,7 @@ export function TrainingOrgPortal({ onBack, org }: TrainingOrgPortalProps) {
     const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
     const [selectedPackageUpgrade, setSelectedPackageUpgrade] = useState<string | null>(null);
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
-    const {data:invoiceData, isLoading: isLoadingInvoice} = useGetInvoiceQuery(org?.id);
+
 
     const { data: organizationData, isLoading: isLoadingOrganization } = useGetOrganizationQuery({ id: org?.id });
     const { data: balanceData, isLoading: isLoadingBalance } = useGetOrgBalanceQuery(org?.id);
@@ -305,10 +337,6 @@ export function TrainingOrgPortal({ onBack, org }: TrainingOrgPortalProps) {
             }
             : skipToken
     );
-    console.log("Organization", organizationData)
-    console.log("Balance", balanceData)
-    console.log("Usage", usageData)
-
     const isLoading = isLoadingOrganization || isLoadingBalance || isLoadingUsage || isLoadingInvoice;
 
     // Transform API data to component format
@@ -321,7 +349,7 @@ export function TrainingOrgPortal({ onBack, org }: TrainingOrgPortalProps) {
         totalCredits: balanceData?.totalCredits || 100,
         usedCredits: (balanceData?.totalCredits || 100) - (balanceData?.remainingCredits || 0),
         remainingCredits: balanceData?.remainingCredits || 15,
-        renewalDate: balanceData?.expiryDate ,
+        renewalDate: balanceData?.expiryDate,
         status: organizationData?.data?.status?.toLowerCase() || 'active',
         billingCycle: balanceData?.billingCycle?.toLowerCase() || 'quarterly',
         orgName: organizationData?.data?.name || 'Melbourne College of Excellence',
@@ -430,11 +458,6 @@ export function TrainingOrgPortal({ onBack, org }: TrainingOrgPortalProps) {
 
     const usagePercentage = (mockPackageInfo.usedCredits / mockPackageInfo.totalCredits) * 100;
     const isLowCredit = mockPackageInfo.remainingCredits <= 20;
-
-    const totalPaid = mockInvoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0);
-    const totalPending = mockInvoices.filter(inv => inv.status === 'pending' || inv.status === 'sent').reduce((sum, inv) => sum + inv.amount, 0);
-    const totalOverdue = mockInvoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + inv.amount, 0);
-
     const exportCreditCSV = () => {
         const headers = ['Date', 'Time', 'Student Name', 'Student ID', 'Course', 'Activity', 'Industry', 'Placement', 'Credits Used', 'Status', 'Quarter'];
         const rows = filteredUsage.map((u: any) => [
@@ -471,8 +494,6 @@ export function TrainingOrgPortal({ onBack, org }: TrainingOrgPortalProps) {
             </div>
         );
     }
-
-    console.log('Invoices', invoiceData)
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { FormProvider, useForm } from 'react-hook-form';
 import Organization from './Components/Organization';
@@ -20,17 +20,28 @@ interface CustomerPricingProps {
   onCheckout: (summary: any) => void;
   agent?: any;
   setAddOns: (selectedAddOns: any[]) => void;
+  unselAddon: (unselectedAddOns: any[]) => void;
 }
 
-export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: CustomerPricingProps) {
-    console.log("agent", agent)
+export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddon }: CustomerPricingProps) {
+  const initializedRef = useRef(false);
   const { data: networkCreditPacks, isLoading: networkLoading } = useGetNetworkQuery();
   const { data: addOnData, isLoading: addOnLoading } = useGetAddOnsQuery();
   const { data: quotesData, isLoading: quotesLoading } = useGetQuotesQuery({ agentId: agent?.id });
   const { data: specificQuotesData, refetch, isLoading: specificQuotesLoading } = useGetSpecificQuotesQuery(quotesData?.data.quotes[0]?.id, {
     skip: !quotesData?.data.quotes[0]?.id // Only fetch when quote ID exists
   });
-   const { data: subscriptionData, isLoading: subscriptionLoading, error: subscriptionError } = useGetSubscriptionByOrgQuery(agent?.organizationId)
+  const { data: subscriptionData, isLoading: subscriptionLoading, error: subscriptionError } = useGetSubscriptionByOrgQuery(agent?.organizationId)
+
+
+  const memoExistingAddOns = useMemo(() => {
+    if (!subscriptionData?.[0]?.addons) return [];
+
+    return subscriptionData[0].addons.map((addon: any) => ({
+      addonId: addon.addonId || addon.id,
+      quantity: addon.quantity,
+    }));
+  }, [subscriptionData]);
 
   const [addQuotes] = useAddQuotesMutation();
   const [updateQuotes] = useUpdateQuotesMutation();
@@ -40,8 +51,28 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
 
   const [loading, setLoading] = useState(false);
 
-  const methods = useForm({ mode: 'onChange' });
-  const { watch } = methods;
+  const methods = useForm({
+    mode: 'onChange',
+    defaultValues: {
+      organizationId: agent?.organizationId,
+      organizationType: '',
+      plan: '',
+      tier: '',
+      networkPack: '',
+      addOns: [],
+    },
+  });
+  const { watch, reset } = methods;
+  useEffect(() => {
+    if (!subscriptionData?.[0]) return;
+    reset((prev) => ({
+      ...prev,
+      addOns: subscriptionData[0].addons?.map((addon: any) => ({
+        addonId: addon.addonId || addon.id,
+        quantity: addon.quantity,
+      })) ?? [],
+    }));
+  }, [subscriptionData]);
   const organizationId = watch('organizationId');
   const organizationType = watch('organizationType');
   const plan = watch('plan');
@@ -88,19 +119,33 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
     };
   }, [organizationId, organizationType, plan, tier, networkPack, selectedAddOns]);
 
+  const prevPayloadRef = useRef<string | null>(null);
   useEffect(() => {
     if (!previewPayload) return;
+    // 🔥 Skip first run caused by form initialization
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      return;
+    }
+
+    const serialized = JSON.stringify(previewPayload);
+    if (serialized === prevPayloadRef.current) return; // ✅ skip if nothing changed
+    prevPayloadRef.current = serialized;
 
     const createQuote = async () => {
       try {
         setLoading(true);
         if (specificQuotesData?.data) {
-          await updateQuotes({ id: specificQuotesData?.data.id, body: previewPayload }).unwrap();
+          await updateQuotes({
+            id: specificQuotesData?.data.id,
+            body: previewPayload
+          }).unwrap();
           await refetch();
         } else {
           await addQuotes(previewPayload).unwrap();
         }
-        setAddOns(selectedAddOns.map(a => (a.id)))
+
+        setAddOns(selectedAddOns.map(a => a.id));
       } catch (err) {
         console.error('Error creating quote:', err);
       } finally {
@@ -109,7 +154,7 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
     };
 
     createQuote();
-  }, [previewPayload, organizationId, addQuotes]);
+  }, [previewPayload]);
 
   const handleCheckout = () => {
     if (!specificQuotesData) return null;
@@ -140,10 +185,10 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
 
         <FormProvider {...methods}>
           <form>
-            <Organization data={Pricing}  />
+            <Organization data={Pricing} />
             <Features />
 
-         <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm"><PricingTier data={Pricing} /></div>
+            <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm"><PricingTier data={Pricing} /></div>
 
             {plan && networkCreditPacks && (
               <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm">
@@ -151,7 +196,7 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns }: Custome
               </div>
             )}
 
-            {networkPack && addOnData && <Step6 data={addOnData} existingAddOn={subscriptionData[0]?.addons}/>}
+            {networkPack && addOnData && <Step6 data={addOnData} existingAddOn={memoExistingAddOns} />}
 
             {specificQuotesData?.data && networkPack && (
               <div className="lg:fixed lg:top-20 lg:right-8 lg:w-80">
