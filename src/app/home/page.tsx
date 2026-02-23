@@ -33,7 +33,7 @@ export default function page() {
   const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery();
   console.log("AGENT", agent)
   const {
-    data: subscriptionData, isLoading: subscriptionLoading, error: subscriptionError
+    data: subscriptionData, isLoading: subscriptionLoading
   } = useGetSubscriptionByOrgQuery(agent?.organizationId);
 
 
@@ -61,7 +61,7 @@ export default function page() {
 
 
   const isLoading = agentLoading || subscriptionLoading
-  const error = agentError || subscriptionError
+  const error = agentError
   console.log("Subscription", subscriptionData)
 
   if (currentView === 'customer') {
