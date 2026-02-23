@@ -24,8 +24,6 @@ export default function PricingTableFilters({ setModal, editTier }: { setModal: 
     getData();
   }, [data]);
 
-console.log(searchData)
-
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -41,7 +39,6 @@ console.log(searchData)
       </div>
     );
   }
-  // console.log('pricing Tiers', searchData)
   const ROWS_PER_PAGE = 10;
 
   const startIndex = (currentPage - 1) * ROWS_PER_PAGE

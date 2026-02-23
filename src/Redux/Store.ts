@@ -12,6 +12,7 @@ import { notificationApi } from './services/Notifications'
 import { subscriptionApi } from './services/Subscription'
 import { paymentApi } from './services/Payment'
 import { InvoiceApi } from './services/Invoice'
+import { AuditApi } from './services/Audit'
 
 export const store = configureStore({
   reducer: {
@@ -28,6 +29,7 @@ export const store = configureStore({
     [subscriptionApi.reducerPath]: subscriptionApi.reducer,
     [paymentApi.reducerPath]: paymentApi.reducer,
     [InvoiceApi.reducerPath]: InvoiceApi.reducer,
+    [AuditApi.reducerPath]: AuditApi.reducer,
   },
   // Adding the api middleware enables caching, invalidation, polling,
   // and other useful features of `rtk-query`.
@@ -43,7 +45,8 @@ export const store = configureStore({
       notificationApi.middleware,
       subscriptionApi.middleware,
       paymentApi.middleware,
-      InvoiceApi.middleware),
+      InvoiceApi.middleware,
+      AuditApi.middleware),
 })
 
 // optional, but required for refetchOnFocus/refetchOnReconnect behaviors

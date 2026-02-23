@@ -3,7 +3,7 @@
 
 import { Spinner } from '@/app/components/ui/spinner';
 import { useDeleteAddOnsMutation, useGetAddOnsQuery } from '@/Redux/services/AddOns'
-import {  MoreVertical, Plus, Star, Trash2 } from 'lucide-react'
+import { MoreVertical, Plus, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react';
 import { AddOnsForm } from './AddOnsForm';
 import { toast } from 'sonner';
@@ -29,11 +29,6 @@ export default function AddOns() {
       </div>
     );
   }
-
-  // console.log(data)
-
-  //  console.log("AddONS", data)
-
   const handleEdit = (tier: addons) => {
     setselectedAddOns(tier)
     setshowModel(true)
@@ -98,9 +93,6 @@ export default function AddOns() {
                   </span>
                 </div>
               </div>
-              <button className="p-1.5 hover:bg-gray-100 rounded transition-colors opacity-0 group-hover:opacity-100">
-                <MoreVertical className="w-4 h-4 text-gray-600" />
-              </button>
             </div>
 
             <div className="pt-3 border-t border-gray-100">

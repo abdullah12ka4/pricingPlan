@@ -61,8 +61,8 @@ export const activeQuotesApi = createApi({
       }),
       invalidatesTags: (result, error, arg) => [{ type: 'quotes', id: arg.id }],
     }),
-    viewQuotes: builder.mutation<any, any>({
-      query: (body) => `/api/v1/quotes/${body.id}/view/${body.token}`,
+    viewQuotes: builder.mutation<any, {id:string, token:string}>({
+      query: ({id, token}) => `/api/v1/quotes/${id}/view/${token}`,
       invalidatesTags: ['quotes'],
     }),
     approveQuotes: builder.mutation<any, any>({

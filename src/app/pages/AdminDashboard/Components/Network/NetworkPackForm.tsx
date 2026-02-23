@@ -18,14 +18,18 @@ export default function NetworkPackForm({ modal, selectedNetwork }: { modal: (va
         }
         try {
             if(selectedNetwork?.id){
-                await editNetwork({id: selectedNetwork.id, editPayload: data}).unwrap();
+                const res = await editNetwork({id: selectedNetwork.id, editPayload: data}).unwrap();
+                if(res?.id){            
                 modal(false);  
                 toast.success('Network package edited successfully!');           
+                }
             }
             else{
             const res = await addNetwork(data).unwrap();
+            if(res?.id){
             modal(false);  
             toast.success('Network package added successfully!'); 
+            }
                 
             }
                 

@@ -152,8 +152,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
       toast.error('Please agree to the terms and conditions');
       return;
     }
-
-    // Validate required fields
     if (!billingInfo.name || !billingInfo.abnAcn || !billingInfo.primaryContactName ||
       !billingInfo.billingEmail || !billingInfo.contactPhone || !billingInfo.addressLine1 ||
       !billingInfo.city || !billingInfo.state || !billingInfo.postalCode) {
@@ -244,602 +242,480 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
         }
 
         stripePaymentMethodId = paymentId;
-      } else if (!hasExistingSubscription && paymentMethod === 'bank') {
-        // Construct Invoice Items from Summary
-        const invoiceItems: any[] = [];
-
-        // Plan
-        if (summary?.pricing_tier) {
-          console.log("Summmary on Pricing Tier", summary)
-          invoiceItems.push({
-            itemType: 'tier',
-            description: `CRM ${summary?.plan_type === 'BASIC' ? 'Basic' : 'Premium'} - Annual License`,
-            quantity: 1,
-            unitPrice: summary.pricing_tier.annual_price,
-            totalPrice: summary.pricing_tier.annual_price
-          });
-        }
-
-        // Setup Fee
-        if (summary?.setupFee > 0) {
-          invoiceItems.push({
-            itemType: 'setup_fee',
-            description: 'Setup Fee',
-            quantity: 1,
-            unitPrice: summary.setupFee,
-            totalPrice: summary.setupFee
-          });
-        }
-
-        // Network Package
-        if (summary?.network_package) {
-          invoiceItems.push({
-            itemType: 'network_package',
-            description: `${summary.network_package.name} Credits`,
-            quantity: 1,
-            unitPrice: summary.network_package.total_cost,
-            totalPrice: summary.network_package.total_cost
-          });
-        }
-
-        // Addons
-        if (summary?.items?.length > 0) {
-          summary.items.forEach((item: any) => {
-            invoiceItems.push({
-              itemType: 'addon',
-              description: item.name,
-              quantity: 1,
-              unitPrice: item.total_price,
-              totalPrice: item.total_price
-            });
-          });
-        }
-
-        // Calculate Subtotal
-        const subtotal = invoiceItems.reduce((acc, item) => acc + item.totalPrice, 0);
-
-        // Current Date for Due Date and Billing Start
-        const now = new Date();
-        const oneYearLater = new Date(now);
-        oneYearLater.setFullYear(now.getFullYear() + 1);
-
-        const invoicePayload = {
-          organizationId: agent?.organization?.id, // from handleOrganization()
-          subtotal: subtotal,
-          dueDate: now.toISOString(),
-          billingPeriodStart: now.toISOString(),
-          billingPeriodEnd: oneYearLater.toISOString(),
-          notes: 'Generated via Bank Transfer checkout',
-          gstRate: 10,
-          items: invoiceItems
+      } else {
+        const subscriptionPayload = {
+          organization_id: agent?.organization?.id || existingOrganization?.id,
+          quote_id: summary?.id,
+          plan_type: summary?.plan_type,
+          pricing_tier_id: summary?.pricing_tier?.id,
+          network_package_id: summary?.network_package?.id,
+          addon_ids: selAddon || [],
+          start_date: summary?.created_at || new Date().toISOString(),
+          billing_cycle: 'annual',
+          auto_renew: true,
+          payment_method: paymentMethod,
+          payment_details: paymentMethod === 'card' ? {
+            stripe_payment_method_id: stripePaymentMethodId,
+          } : {},
         };
 
-        console.log('Creating Invoice for Bank Transfer:', invoicePayload);
+        const subscriptionResponse = await addSubscription(subscriptionPayload).unwrap();
+        console.log('Subscription Created:', subscriptionResponse);
 
-        const res = await createInvoice(invoicePayload).unwrap();
-        console.log("RSPONSE", res)
+        toast.success('Payment processed successfully!', {
+          description: 'Your subscription is now active.'
+          // CREATE new subscription
 
-        toast.success('Invoice created successfully');
+        })
       }
-      // Step 3: Create or Update subscription
-      if (hasExistingSubscription) {
-        // UPDATE existing subscription
-        const existingSub = subscriptionData[0];
-        console.log("EXISTING SUB", existingSub)
-        const isUpgrade = summary?.totals?.total_amount > existingSub.annual_price;
-        console.log("IS UPGRADE", isUpgrade)
+      onComplete();    
+  } catch (err: any) {
+    console.error('Payment error:', err);
 
-        if (isUpgrade) {
-          const upgradePayload = {
-            id: existingSub.id,
-            body: {
-              new_pricing_tier_id: summary?.pricing_tier?.id,
-              new_plan_type: summary?.plan_type,
-              additional_addon_ids: selAddon,
-              effective_date: "immediate"
-            }
-          }
-          // Call upgrade endpoint — charges pro-rata difference
-          // Still need Stripe payment for the net_charge amount
-          console.log("Upgrade Payload", upgradePayload)
-          const res = await upgradeSubscription(upgradePayload).unwrap();
-          console.log("Upgrade", res)
-          // Backend returns net_charge → process that payment via Stripe
+    let errorMessage = 'Something went wrong. Please try again.';
+    let errorDescription = undefined;
 
-        } else {
-          // Downgrade — schedule for renewal, no payment needed now
-          const downgradePayload = {
-            id: existingSub.id,
-            body: {
-              new_pricing_tier_id: summary?.pricing_tier?.id,
-              new_plan_type: summary?.plan_type,
-              remove_addon_ids: unselAddon,
-            }
-          }
-          console.log("Downgrade Payload", downgradePayload)
-          const res = await downgradeSubscription(downgradePayload).unwrap();
-          console.log("Downgrade", res)
-          toast.success('Downgrade scheduled for your renewal date');
-        }
-
-      } else {
-        if (paymentMethod !== 'bank') {
-          const subscriptionPayload = {
-            organization_id: agent?.organization?.id || existingOrganization?.id,
-            quote_id: summary?.id,
-            plan_type: summary?.plan_type,
-            pricing_tier_id: summary?.pricing_tier?.id,
-            network_package_id: summary?.network_package?.id,
-            addon_ids: selAddon || [],
-            start_date: summary?.created_at || new Date().toISOString(),
-            billing_cycle: 'annual',
-            auto_renew: true,
-            payment_method: paymentMethod,
-            payment_details: {
-              stripe_payment_method_id: stripePaymentMethodId,
-            },
-          };
-
-          const subscriptionResponse = await addSubscription(subscriptionPayload).unwrap();
-          console.log('Subscription Created:', subscriptionResponse);
-
-          toast.success('Payment processed successfully!', {
-            description: 'Your subscription is now active.'
-            // CREATE new subscription
-
-          })
-        }
-
-        onComplete();
-
-      }
-    } catch (err: any) {
-      console.error('Payment error:', err);
-
-      let errorMessage = 'Something went wrong. Please try again.';
-      let errorDescription = undefined;
-
-      if (err.message) {
-        errorMessage = err.message;
-      }
-
-      if (err.data?.message) {
-        errorMessage = err.data.message;
-      }
-
-      if (err.data?.errors) {
-        errorDescription = Object.values(err.data.errors).flat().join(', ');
-      }
-
-      toast.error(errorMessage, {
-        description: errorDescription,
-      });
-    } finally {
-      setIsProcessing(false);
+    if (err.message) {
+      errorMessage = err.message;
     }
-  };
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-[#044866]/10 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-5 py-3.5">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-[#044866] hover:text-[#0D5468] transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Back to Pricing</span>
-          </button>
+
+    if (err.data?.message) {
+      errorMessage = err.data.message;
+    }
+
+    if (err.data?.errors) {
+      errorDescription = Object.values(err.data.errors).flat().join(', ');
+    }
+
+    toast.error(errorMessage, {
+      description: errorDescription,
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+return (
+  <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
+    {/* Header */}
+    <div className="bg-white/80 backdrop-blur-sm border-b border-[#044866]/10 sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-5 py-3.5">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-[#044866] hover:text-[#0D5468] transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm">Back to Pricing</span>
+        </button>
+      </div>
+    </div>
+
+    <div className="max-w-6xl mx-auto px-5 py-7">
+      <div className="text-center mb-7">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#044866]/10 rounded-full mb-3">
+          <Lock className="w-3.5 h-3.5 text-[#044866]" />
+          <span className="text-xs text-[#044866]">Secure Checkout</span>
         </div>
+        <h1 className="text-3xl mb-2.5 text-[#044866]">Complete Your Purchase</h1>
+        <p className="text-base text-gray-600">You're one step away from transforming your training management</p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-5 py-7">
-        <div className="text-center mb-7">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#044866]/10 rounded-full mb-3">
-            <Lock className="w-3.5 h-3.5 text-[#044866]" />
-            <span className="text-xs text-[#044866]">Secure Checkout</span>
-          </div>
-          <h1 className="text-3xl mb-2.5 text-[#044866]">Complete Your Purchase</h1>
-          <p className="text-base text-gray-600">You're one step away from transforming your training management</p>
-        </div>
+      <form onSubmit={handleSubmit}>
+        <div className="grid lg:grid-cols-3 gap-5">
+          {/* Main Content - Left Side */}
+          <div className="lg:col-span-2 space-y-5">
+            {/* Billing Information */}
+            <div className="bg-white border border-[#044866]/10 rounded-xl p-5 shadow-sm">
+              <h2 className="text-lg text-[#044866] mb-4">Billing Information</h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-3 gap-5">
-            {/* Main Content - Left Side */}
-            <div className="lg:col-span-2 space-y-5">
-              {/* Billing Information */}
-              <div className="bg-white border border-[#044866]/10 rounded-xl p-5 shadow-sm">
-                <h2 className="text-lg text-[#044866] mb-4">Billing Information</h2>
+              <div className="grid md:grid-cols-2 gap-3.5">
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-700 mb-1.5">Organisation Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={billingInfo.name}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="Your training organisation name"
+                  />
+                </div>
 
-                <div className="grid md:grid-cols-2 gap-3.5">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1.5">Organisation Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={billingInfo.name}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="Your training organisation name"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1.5">ABN *</label>
+                  <input
+                    type="text"
+                    required
+                    value={billingInfo.abnAcn}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, abnAcn: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="12 345 678 901"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1.5">ABN *</label>
-                    <input
-                      type="text"
-                      required
-                      value={billingInfo.abnAcn}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, abnAcn: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="12 345 678 901"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1.5">Contact Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={billingInfo.primaryContactName}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, primaryContactName: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="Full name"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1.5">Contact Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={billingInfo.primaryContactName}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, primaryContactName: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="Full name"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1.5">Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={billingInfo.billingEmail}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, billingEmail: e.target.value, contactEmail: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="contact@example.com"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1.5">Email *</label>
-                    <input
-                      type="email"
-                      required
-                      value={billingInfo.billingEmail}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, billingEmail: e.target.value, contactEmail: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="contact@example.com"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1.5">Phone *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={billingInfo.contactPhone}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, contactPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="04XX XXX XXX"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1.5">Phone *</label>
-                    <input
-                      type="tel"
-                      required
-                      value={billingInfo.contactPhone}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, contactPhone: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="04XX XXX XXX"
-                    />
-                  </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-700 mb-1.5">Street Address *</label>
+                  <input
+                    type="text"
+                    required
+                    value={billingInfo.addressLine1}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, addressLine1: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="123 Main Street"
+                  />
+                </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1.5">Street Address *</label>
-                    <input
-                      type="text"
-                      required
-                      value={billingInfo.addressLine1}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, addressLine1: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="123 Main Street"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1.5">City *</label>
+                  <input
+                    type="text"
+                    required
+                    value={billingInfo.city}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, city: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="Sydney"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1.5">City *</label>
-                    <input
-                      type="text"
-                      required
-                      value={billingInfo.city}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, city: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="Sydney"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1.5">State *</label>
+                  <select
+                    required
+                    value={billingInfo.state}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, state: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                  >
+                    <option value="">Select State</option>
+                    <option value="NSW">NSW</option>
+                    <option value="VIC">VIC</option>
+                    <option value="QLD">QLD</option>
+                    <option value="WA">WA</option>
+                    <option value="SA">SA</option>
+                    <option value="TAS">TAS</option>
+                    <option value="ACT">ACT</option>
+                    <option value="NT">NT</option>
+                  </select>
+                </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1.5">State *</label>
-                    <select
-                      required
-                      value={billingInfo.state}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, state: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                    >
-                      <option value="">Select State</option>
-                      <option value="NSW">NSW</option>
-                      <option value="VIC">VIC</option>
-                      <option value="QLD">QLD</option>
-                      <option value="WA">WA</option>
-                      <option value="SA">SA</option>
-                      <option value="TAS">TAS</option>
-                      <option value="ACT">ACT</option>
-                      <option value="NT">NT</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1.5">Postcode *</label>
-                    <input
-                      type="text"
-                      required
-                      value={billingInfo.postalCode}
-                      onChange={(e) => setBillingInfo({ ...billingInfo, postalCode: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                      placeholder="2000"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1.5">Postcode *</label>
+                  <input
+                    type="text"
+                    required
+                    value={billingInfo.postalCode}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, postalCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                    placeholder="2000"
+                  />
                 </div>
               </div>
+            </div>
 
-              {/* Payment Method */}
-              <div className="bg-white border border-[#044866]/10 rounded-xl p-5 shadow-sm">
-                <h2 className="text-lg text-[#044866] mb-4">Payment Method</h2>
+            {/* Payment Method */}
+            <div className="bg-white border border-[#044866]/10 rounded-xl p-5 shadow-sm">
+              <h2 className="text-lg text-[#044866] mb-4">Payment Method</h2>
 
-                <div className="grid md:grid-cols-2 gap-3 mb-5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (paymentMethod !== 'card') {
-                        console.log('🔄 Switched to card payment');
-                        setPaymentMethod('card');
-                      }
-                    }}
-                    disabled={isProcessing}
-                    className={`p-3.5 border-2 rounded-lg text-left transition-all ${paymentMethod === 'card'
-                      ? 'border-[#044866] bg-[#044866]/5'
-                      : 'border-gray-200 hover:border-[#044866]/30'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <CreditCard className="w-4 h-4 text-[#044866]" />
-                      <span className="text-sm text-[#044866]">Credit/Debit Card</span>
-                      {paymentMethod === 'card' && <Check className="w-4 h-4 text-[#044866] ml-auto" />}
+              <div className="grid md:grid-cols-2 gap-3 mb-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (paymentMethod !== 'card') {
+                      console.log('🔄 Switched to card payment');
+                      setPaymentMethod('card');
+                    }
+                  }}
+                  disabled={isProcessing}
+                  className={`p-3.5 border-2 rounded-lg text-left transition-all ${paymentMethod === 'card'
+                    ? 'border-[#044866] bg-[#044866]/5'
+                    : 'border-gray-200 hover:border-[#044866]/30'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <CreditCard className="w-4 h-4 text-[#044866]" />
+                    <span className="text-sm text-[#044866]">Credit/Debit Card</span>
+                    {paymentMethod === 'card' && <Check className="w-4 h-4 text-[#044866] ml-auto" />}
+                  </div>
+                  <p className="text-xs text-gray-600">Pay securely with your card</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (paymentMethod !== 'bank') {
+                      setPaymentMethod('bank');
+                    }
+                  }}
+                  disabled={isProcessing}
+                  className={`p-3.5 border-2 rounded-lg text-left transition-all ${paymentMethod === 'bank'
+                    ? 'border-[#044866] bg-[#044866]/5'
+                    : 'border-gray-200 hover:border-[#044866]/30'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Building className="w-4 h-4 text-[#044866]" />
+                    <span className="text-sm text-[#044866]">Bank Transfer</span>
+                    {paymentMethod === 'bank' && <Check className="w-4 h-4 text-[#044866] ml-auto" />}
+                  </div>
+                  <p className="text-xs text-gray-600">Invoice sent after order</p>
+                </button>
+              </div>
+
+              {paymentMethod === 'card' && (
+                <div className="pt-4 border-t border-gray-100 space-y-3.5">
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1.5">Cardholder Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={cardholderName}
+                      onChange={(e) => setCardholderName(e.target.value)}
+                      className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
+                      placeholder="Name as it appears on card"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1.5">Card Number *</label>
+                    <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardNumber
+                      ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
+                      : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
+                      }`}>
+                      <CardNumberElement options={CARD_ELEMENT_OPTIONS} />
                     </div>
-                    <p className="text-xs text-gray-600">Pay securely with your card</p>
-                  </button>
+                    {cardErrors.cardNumber && (
+                      <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {cardErrors.cardNumber}
+                      </p>
+                    )}
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (paymentMethod !== 'bank') {
-                        setPaymentMethod('bank');
-                      }
-                    }}
-                    disabled={isProcessing}
-                    className={`p-3.5 border-2 rounded-lg text-left transition-all ${paymentMethod === 'bank'
-                      ? 'border-[#044866] bg-[#044866]/5'
-                      : 'border-gray-200 hover:border-[#044866]/30'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Building className="w-4 h-4 text-[#044866]" />
-                      <span className="text-sm text-[#044866]">Bank Transfer</span>
-                      {paymentMethod === 'bank' && <Check className="w-4 h-4 text-[#044866] ml-auto" />}
-                    </div>
-                    <p className="text-xs text-gray-600">Invoice sent after order</p>
-                  </button>
-                </div>
-
-                {paymentMethod === 'card' && (
-                  <div className="pt-4 border-t border-gray-100 space-y-3.5">
+                  <div className="grid grid-cols-2 gap-3.5">
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1.5">Cardholder Name *</label>
-                      <input
-                        type="text"
-                        required
-                        value={cardholderName}
-                        onChange={(e) => setCardholderName(e.target.value)}
-                        className="w-full px-3 py-2 border border-[#044866]/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#044866]/20"
-                        placeholder="Name as it appears on card"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-gray-700 mb-1.5">Card Number *</label>
-                      <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardNumber
+                      <label className="block text-sm text-gray-700 mb-1.5">Expiry Date *</label>
+                      <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardExpiry
                         ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
                         : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
                         }`}>
-                        <CardNumberElement options={CARD_ELEMENT_OPTIONS} />
+                        <CardExpiryElement options={CARD_ELEMENT_OPTIONS} />
                       </div>
-                      {cardErrors.cardNumber && (
+                      {cardErrors.cardExpiry && (
                         <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
-                          {cardErrors.cardNumber}
+                          {cardErrors.cardExpiry}
                         </p>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3.5">
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-1.5">Expiry Date *</label>
-                        <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardExpiry
-                          ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
-                          : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
-                          }`}>
-                          <CardExpiryElement options={CARD_ELEMENT_OPTIONS} />
-                        </div>
-                        {cardErrors.cardExpiry && (
-                          <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {cardErrors.cardExpiry}
-                          </p>
-                        )}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1.5">CVC *</label>
+                      <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardCvc
+                        ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
+                        : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
+                        }`}>
+                        <CardCvcElement options={CARD_ELEMENT_OPTIONS} />
                       </div>
-
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-1.5">CVC *</label>
-                        <div className={`w-full px-3 py-2 border rounded-lg transition-all ${cardErrors.cardCvc
-                          ? 'border-red-300 focus-within:ring-2 focus-within:ring-red-200'
-                          : 'border-[#044866]/20 focus-within:ring-2 focus-within:ring-[#044866]/20'
-                          }`}>
-                          <CardCvcElement options={CARD_ELEMENT_OPTIONS} />
-                        </div>
-                        {cardErrors.cardCvc && (
-                          <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {cardErrors.cardCvc}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-3">
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Your payment is secured by Stripe</span>
-                    </div>
-                  </div>
-                )}
-
-                {paymentMethod === 'bank' && (
-                  <div className="p-3.5 bg-[#044866]/5 rounded-lg border border-[#044866]/10">
-                    <div className="flex gap-2 mb-2">
-                      <AlertCircle className="w-4 h-4 text-[#044866] mt-0.5" />
-                      <div>
-                        <p className="text-sm text-[#044866] mb-1">Bank Transfer Instructions</p>
-                        <p className="text-xs text-gray-600">
-                          You will receive an invoice with our bank details via email. Your subscription will be
-                          activated once payment is received (usually 1-2 business days).
+                      {cardErrors.cardCvc && (
+                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {cardErrors.cardCvc}
                         </p>
-                      </div>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* Terms */}
-              <div className="bg-white border border-[#044866]/10 rounded-xl p-5 shadow-sm">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    className="mt-1 w-4 h-4 accent-[#044866]"
-                    required
-                  />
-                  <div className="text-sm text-gray-700">
-                    I agree to the{' '}
-                    <a href="#" className="text-[#044866] hover:text-[#0D5468] underline">
-                      Terms and Conditions
-                    </a>{' '}
-                    and{' '}
-                    <a href="#" className="text-[#044866] hover:text-[#0D5468] underline">
-                      Privacy Policy
-                    </a>
-                    . I understand that my subscription will renew automatically unless cancelled.
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-3">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Your payment is secured by Stripe</span>
                   </div>
-                </label>
-              </div>
+                </div>
+              )}
+
+              {paymentMethod === 'bank' && (
+                <div className="p-3.5 bg-[#044866]/5 rounded-lg border border-[#044866]/10">
+                  <div className="flex gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-[#044866] mt-0.5" />
+                    <div>
+                      <p className="text-sm text-[#044866] mb-1">Bank Transfer Instructions</p>
+                      <p className="text-xs text-gray-600">
+                        You will receive an invoice with our bank details via email. Your subscription will be
+                        activated once payment is received (usually 1-2 business days).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Order Summary - Right Side */}
-            <div className="lg:col-span-1">
-              <div className="bg-white border-2 border-[#044866]/10 rounded-xl p-5 shadow-lg sticky top-20">
-                <h3 className="text-base text-[#044866] mb-4">Order Summary</h3>
+            {/* Terms */}
+            <div className="bg-white border border-[#044866]/10 rounded-xl p-5 shadow-sm">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 w-4 h-4 accent-[#044866]"
+                  required
+                />
+                <div className="text-sm text-gray-700">
+                  I agree to the{' '}
+                  <a href="#" className="text-[#044866] hover:text-[#0D5468] underline">
+                    Terms and Conditions
+                  </a>{' '}
+                  and{' '}
+                  <a href="#" className="text-[#044866] hover:text-[#0D5468] underline">
+                    Privacy Policy
+                  </a>
+                  . I understand that my subscription will renew automatically unless cancelled.
+                </div>
+              </label>
+            </div>
+          </div>
 
-                <div className="space-y-3.5 mb-5">
-                  {/* Plan */}
+          {/* Order Summary - Right Side */}
+          <div className="lg:col-span-1">
+            <div className="bg-white border-2 border-[#044866]/10 rounded-xl p-5 shadow-lg sticky top-20">
+              <h3 className="text-base text-[#044866] mb-4">Order Summary</h3>
+
+              <div className="space-y-3.5 mb-5">
+                {/* Plan */}
+                <div className="pb-3.5 border-b border-gray-100">
+                  <div className="text-sm text-[#044866] mb-1">
+                    CRM {summary?.plan_type === 'BASIC' ? 'Basic' : 'Premium'}
+                  </div>
+                  <div className="text-xs text-gray-600 mb-2">{summary?.pricing_tier?.min_max_gb}</div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Annual License</span>
+                    <span className="text-[#044866]">${summary?.pricing_tier?.annual_price}</span>
+                  </div>
+                </div>
+
+                {/* Setup Fee */}
+                {summary?.setupFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Setup Fee</span>
+                    <span className="text-[#044866]">${summary?.setupFee?.toLocaleString()}</span>
+                  </div>
+                )}
+
+                {/* Network Pack */}
+                {summary?.network_package && (
                   <div className="pb-3.5 border-b border-gray-100">
                     <div className="text-sm text-[#044866] mb-1">
-                      CRM {summary?.plan_type === 'BASIC' ? 'Basic' : 'Premium'}
+                      {summary.network_package.name} Credits
                     </div>
-                    <div className="text-xs text-gray-600 mb-2">{summary?.pricing_tier?.min_max_gb}</div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Annual License</span>
-                      <span className="text-[#044866]">${summary?.pricing_tier?.annual_price}</span>
+                      <span className="text-gray-600">Quarterly</span>
+                      <span className="text-[#044866]">
+                        ${summary.network_package.total_cost?.toLocaleString()}
+                      </span>
                     </div>
                   </div>
+                )}
 
-                  {/* Setup Fee */}
-                  {summary?.setupFee > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Setup Fee</span>
-                      <span className="text-[#044866]">${summary?.setupFee?.toLocaleString()}</span>
-                    </div>
-                  )}
-
-                  {/* Network Pack */}
-                  {summary?.network_package && (
-                    <div className="pb-3.5 border-b border-gray-100">
-                      <div className="text-sm text-[#044866] mb-1">
-                        {summary.network_package.name} Credits
+                {/* Add-ons */}
+                {summary?.items?.length > 0 && (
+                  <div className="pb-3.5 border-b border-gray-100">
+                    <div className="text-xs text-gray-600 mb-2">Add-ons</div>
+                    {summary.items.map((item: any) => (
+                      <div key={item.id} className="flex justify-between text-xs mb-1.5">
+                        <span className="text-gray-600">{item.name}</span>
+                        <span className="text-[#044866]">${item.total_price}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Quarterly</span>
-                        <span className="text-[#044866]">
-                          ${summary.network_package.total_cost?.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                  {/* Add-ons */}
-                  {summary?.items?.length > 0 && (
-                    <div className="pb-3.5 border-b border-gray-100">
-                      <div className="text-xs text-gray-600 mb-2">Add-ons</div>
-                      {summary.items.map((item: any) => (
-                        <div key={item.id} className="flex justify-between text-xs mb-1.5">
-                          <span className="text-gray-600">{item.name}</span>
-                          <span className="text-[#044866]">${item.total_price}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Totals */}
+              <div className="space-y-2 mb-5 pb-5 border-b border-gray-200">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Due Today</span>
+                  <span className="text-[#044866]">${summary?.totals?.one_time_total}</span>
                 </div>
-
-                {/* Totals */}
-                <div className="space-y-2 mb-5 pb-5 border-b border-gray-200">
+                {summary?.totals?.annual_total > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Due Today</span>
-                    <span className="text-[#044866]">${summary?.totals?.one_time_total}</span>
+                    <span className="text-gray-600">Annual (from Year 2)</span>
+                    <span className="text-[#044866]">${summary?.totals?.annual_total}</span>
                   </div>
-                  {summary?.totals?.annual_total > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Annual (from Year 2)</span>
-                      <span className="text-[#044866]">${summary?.totals?.annual_total}</span>
-                    </div>
-                  )}
-                  {summary?.totals?.quarterly_total > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Per Quarter</span>
-                      <span className="text-[#044866]">${summary?.totals?.quarterly_total}</span>
-                    </div>
-                  )}
-                </div>
+                )}
+                {summary?.totals?.quarterly_total > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Per Quarter</span>
+                    <span className="text-[#044866]">${summary?.totals?.quarterly_total}</span>
+                  </div>
+                )}
+              </div>
 
-                <div className="flex justify-between items-center mb-5">
-                  <span className="text-base text-[#044866]">Total Due Today</span>
-                  <span className="text-2xl text-[#044866]">${summary?.totals?.total_amount}</span>
-                </div>
+              <div className="flex justify-between items-center mb-5">
+                <span className="text-base text-[#044866]">Total Due Today</span>
+                <span className="text-2xl text-[#044866]">${summary?.totals?.total_amount}</span>
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={isProcessing}
-                  className="w-full bg-gradient-to-r from-[#044866] to-[#0D5468] text-white py-2.5 rounded-lg hover:shadow-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      {paymentMethod === 'card' ? 'Complete Purchase' : 'Place Order'}
-                    </>
-                  )}
-                </button>
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-full bg-gradient-to-r from-[#044866] to-[#0D5468] text-white py-2.5 rounded-lg hover:shadow-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    {paymentMethod === 'card' ? 'Complete Purchase' : 'Place Order'}
+                  </>
+                )}
+              </button>
 
-                <div className="flex items-center justify-center gap-1 mt-3">
-                  <Lock className="w-3 h-3 text-gray-500" />
-                  <p className="text-xs text-gray-500">Secure 256-bit SSL encrypted payment</p>
-                </div>
+              <div className="flex items-center justify-center gap-1 mt-3">
+                <Lock className="w-3 h-3 text-gray-500" />
+                <p className="text-xs text-gray-500">Secure 256-bit SSL encrypted payment</p>
               </div>
             </div>
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
-  );
+  </div>
+);
 }
 
 // Main export with Stripe Elements wrapper

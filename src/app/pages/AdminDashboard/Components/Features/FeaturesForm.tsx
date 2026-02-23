@@ -28,7 +28,7 @@ export default function FeaturesForm({ modal, features }: { modal: (value: boole
 
         try {
             if (features && features.id) {
-                const res = await editFeature({ id: features.id, editPayload: formData }).unwrap();
+                const res = await editFeature({ id: features.id, editPayload: formData }).unwrap();              
                 const originalString = JSON.stringify(features);
                 const responseString = JSON.stringify(res);
                 if (originalString !== responseString) {
@@ -37,7 +37,7 @@ export default function FeaturesForm({ modal, features }: { modal: (value: boole
                     toast.error("No changes detected");
                 }
             } else {
-                const res = await addFeature(formData).unwrap();
+                const res = await addFeature(formData).unwrap();               
                 if (res && res.name) {
                     toast.success(`${res.name} added successfully`);
                 }

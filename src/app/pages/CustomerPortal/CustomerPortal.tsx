@@ -9,11 +9,15 @@ import Step6 from '../SalesAgentPortal/Components/Steps/Step6';
 import { CheckoutSummary } from '@/app/components/pricing/CheckoutSummary';
 import { usePricing } from '../SalesAgentPortal/Components/PricingContext';
 import { Spinner } from '@/app/components/ui/spinner';
-import { useAddQuotesMutation, useGenerateLinkMutation, useGetQuotesQuery, useGetSpecificQuotesQuery, useUpdateQuotesMutation } from '@/Redux/services/ActiveQuotes';
+import {
+  useAddQuotesMutation,
+  useGetQuotesQuery,
+  useGetSpecificQuotesQuery,
+  useUpdateQuotesMutation,
+} from '@/Redux/services/ActiveQuotes';
 import { useGetAddOnsQuery } from '@/Redux/services/AddOns';
 import { useGetNetworkQuery } from '@/Redux/services/NetworkModal';
 import { useGetSubscriptionByOrgQuery } from '@/Redux/services/Subscription';
-
 
 interface CustomerPricingProps {
   onBack: () => void;
@@ -23,33 +27,46 @@ interface CustomerPricingProps {
   unselAddon: (unselectedAddOns: any[]) => void;
 }
 
-export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddon }: CustomerPricingProps) {
-  const initializedRef = useRef(false);
+export function CustomerPortal({
+  onBack,
+  onCheckout,
+  agent,
+  setAddOns,
+  unselAddon,
+}: CustomerPricingProps) {
   const { data: networkCreditPacks, isLoading: networkLoading } = useGetNetworkQuery();
   const { data: addOnData, isLoading: addOnLoading } = useGetAddOnsQuery();
   const { data: quotesData, isLoading: quotesLoading } = useGetQuotesQuery({ agentId: agent?.id });
-  const { data: specificQuotesData, refetch, isLoading: specificQuotesLoading } = useGetSpecificQuotesQuery(quotesData?.data.quotes[0]?.id, {
-    skip: !quotesData?.data.quotes[0]?.id // Only fetch when quote ID exists
+  const {
+    data: specificQuotesData,
+    refetch,
+    isLoading: specificQuotesLoading,
+  } = useGetSpecificQuotesQuery(quotesData?.data.quotes[0]?.id, {
+    skip: !quotesData?.data.quotes[0]?.id,
   });
-  const { data: subscriptionData, isLoading: subscriptionLoading, error: subscriptionError } = useGetSubscriptionByOrgQuery(agent?.organizationId)
+  const {
+    data: subscriptionData,
+    isLoading: subscriptionLoading,
+  } = useGetSubscriptionByOrgQuery(agent?.organizationId);
 
+  const [addQuotes] = useAddQuotesMutation();
+  const [updateQuotes] = useUpdateQuotesMutation();
+  const Pricing = usePricing();
+  const [loading, setLoading] = useState(false);
 
+  /**
+   * ✅ memoExistingAddOns — passed to Step6 as existingAddOn prop.
+   * Step6 is the SOLE OWNER of the addOns form field.
+   * CustomerPortal NEVER calls reset() or setValue('addOns', ...).
+   * This prevents the reset() vs Step6 fight that was wiping selections.
+   */
   const memoExistingAddOns = useMemo(() => {
     if (!subscriptionData?.[0]?.addons) return [];
-
     return subscriptionData[0].addons.map((addon: any) => ({
       addonId: addon.addonId || addon.id,
       quantity: addon.quantity,
     }));
   }, [subscriptionData]);
-
-  const [addQuotes] = useAddQuotesMutation();
-  const [updateQuotes] = useUpdateQuotesMutation();
-
-  const Pricing = usePricing();
-
-
-  const [loading, setLoading] = useState(false);
 
   const methods = useForm({
     mode: 'onChange',
@@ -59,27 +76,21 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
       plan: '',
       tier: '',
       networkPack: '',
-      addOns: [],
+      addOns: [] as any[],
+      selAddons: [] as any[],
+      unSelAddons: [] as any[],
     },
   });
-  const { watch, reset } = methods;
-  useEffect(() => {
-    if (!subscriptionData?.[0]) return;
-    reset((prev) => ({
-      ...prev,
-      addOns: subscriptionData[0].addons?.map((addon: any) => ({
-        addonId: addon.addonId || addon.id,
-        quantity: addon.quantity,
-      })) ?? [],
-    }));
-  }, [subscriptionData]);
+
+  // ✅ NO reset() call here — Step6 owns addOns/selAddons/unSelAddons
+
+  const { watch } = methods;
   const organizationId = watch('organizationId');
   const organizationType = watch('organizationType');
   const plan = watch('plan');
   const tier = watch('tier');
   const networkPack = watch('networkPack');
   const addOns = watch('addOns');
-
 
   const selectedTier = useMemo<any>(() => {
     if (!tier || !organizationType) return null;
@@ -88,10 +99,11 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
     );
   }, [tier, organizationType, Pricing]);
 
+  // Resolve full addon objects from the addOns form array
   const selectedAddOns = useMemo(() => {
-    if (!addOns || !addOnData) return [];
-    return Object.entries(addOns)
-      .map(([id, qty]: any) => {
+    if (!addOns?.length || !addOnData) return [];
+    return addOns
+      .map((qty: any) => {
         const addon = addOnData.find((a: any) => a.id === qty.addonId);
         if (!addon) return null;
         return { ...addon, quantity: qty.quantity };
@@ -99,8 +111,27 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
       .filter(Boolean);
   }, [addOns, addOnData]);
 
+  /**
+   * ✅ Stable serialized sentinel for selectedAddOns.
+   * Prevents previewPayload from recomputing on every render when
+   * selectedAddOns produces a new array reference but same content.
+   */
+  const selectedAddOnsJsonRef = useRef<string>('');
+  const selectedAddOnsJson = JSON.stringify(
+    selectedAddOns.map((a: any) => ({ id: a.id, quantity: a.quantity }))
+  );
+  if (selectedAddOnsJson !== selectedAddOnsJsonRef.current) {
+    selectedAddOnsJsonRef.current = selectedAddOnsJson;
+  }
+
+  // Build the quote payload — only recomputes when fields actually change
   const previewPayload = useMemo(() => {
     if (!organizationType || !tier || !networkPack || !selectedTier) return null;
+
+    const addonItems = JSON.parse(selectedAddOnsJsonRef.current || '[]').map(
+      (a: any) => ({ addonId: a.id, quantity: a.quantity })
+    );
+
     return {
       clientInfo: {
         name: agent?.name || '',
@@ -114,22 +145,25 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
       organizationId: agent?.organizationId,
       networkPackageId: networkPack,
       studentCount: selectedTier.maxStudents,
-      addonItems: selectedAddOns.map(a => ({ addonId: a.id, quantity: a.quantity })),
-      validUntil: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString() // 7 days from now
+      addonItems,
+      validUntil: new Date(
+        new Date().setDate(new Date().getDate() + 7)
+      ).toISOString(),
     };
-  }, [organizationId, organizationType, plan, tier, networkPack, selectedAddOns]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationType, plan, tier, networkPack, selectedTier, selectedAddOnsJsonRef.current]);
 
+  /**
+   * ✅ Only fire createQuote when payload CONTENT actually changes.
+   * JSON comparison prevents firing on re-renders with same data.
+   */
   const prevPayloadRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!previewPayload) return;
-    // 🔥 Skip first run caused by form initialization
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-      return;
-    }
 
     const serialized = JSON.stringify(previewPayload);
-    if (serialized === prevPayloadRef.current) return; // ✅ skip if nothing changed
+    if (serialized === prevPayloadRef.current) return;
     prevPayloadRef.current = serialized;
 
     const createQuote = async () => {
@@ -137,17 +171,16 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
         setLoading(true);
         if (specificQuotesData?.data) {
           await updateQuotes({
-            id: specificQuotesData?.data.id,
-            body: previewPayload
+            id: specificQuotesData.data.id,
+            body: previewPayload,
           }).unwrap();
           await refetch();
         } else {
           await addQuotes(previewPayload).unwrap();
         }
-
-        setAddOns(selectedAddOns.map(a => a.id));
+        setAddOns(selectedAddOns.map((a: any) => a.id));
       } catch (err) {
-        console.error('Error creating quote:', err);
+        console.error('Error creating/updating quote:', err);
       } finally {
         setLoading(false);
       }
@@ -160,13 +193,30 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
     if (!specificQuotesData) return null;
     onCheckout(specificQuotesData?.data);
   };
-  const isLoading = loading || networkLoading || addOnLoading || quotesLoading || specificQuotesLoading || subscriptionLoading;
-  if (isLoading) return <div className="flex h-screen items-center justify-center"><Spinner /></div>;
+
+  const isLoading =
+    loading ||
+    networkLoading ||
+    addOnLoading ||
+    quotesLoading ||
+    specificQuotesLoading ||
+    subscriptionLoading;
+
+  if (isLoading)
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
       <div className="bg-white/80 backdrop-blur-sm border-b border-[#044866]/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-5 py-3.5">
-          <button onClick={onBack} className="flex items-center gap-2 text-[#044866] hover:text-[#0D5468] transition-colors">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-[#044866] hover:text-[#0D5468] transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm">Back to Dashboard</span>
           </button>
@@ -180,7 +230,9 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
             <span className="text-xs text-[#044866]">Flexible Pricing Plans</span>
           </div>
           <h1 className="text-3xl mb-2.5 text-[#044866]">Choose Your SkilTrak Plan</h1>
-          <p className="text-base text-gray-600">Complete CRM solution for managing work-based learning placements</p>
+          <p className="text-base text-gray-600">
+            Complete CRM solution for managing work-based learning placements
+          </p>
         </div>
 
         <FormProvider {...methods}>
@@ -188,7 +240,9 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
             <Organization data={Pricing} />
             <Features />
 
-            <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm"><PricingTier data={Pricing} /></div>
+            <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm">
+              <PricingTier data={Pricing} />
+            </div>
 
             {plan && networkCreditPacks && (
               <div className="bg-white rounded-xl border border-[#044866]/10 p-5 mb-7 shadow-sm">
@@ -196,11 +250,17 @@ export function CustomerPortal({ onBack, onCheckout, agent, setAddOns, unselAddo
               </div>
             )}
 
-            {networkPack && addOnData && <Step6 data={addOnData} existingAddOn={memoExistingAddOns} />}
+            {/* ✅ Step6 is the sole owner of addOns/selAddons/unSelAddons */}
+            {networkPack && addOnData && (
+              <Step6 data={addOnData} />
+            )}
 
             {specificQuotesData?.data && networkPack && (
               <div className="lg:fixed lg:top-20 lg:right-8 lg:w-80">
-                <CheckoutSummary summary={specificQuotesData?.data} onCheckout={handleCheckout} />
+                <CheckoutSummary
+                  summary={specificQuotesData.data}
+                  onCheckout={handleCheckout}
+                />
               </div>
             )}
           </form>

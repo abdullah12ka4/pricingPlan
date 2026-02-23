@@ -20,6 +20,7 @@ import { CheckOutSummary } from './Types/homeTypes';
 import PricingProvider from '../pages/SalesAgentPortal/Components/PricingContext';
 import { useGetOrganizationQuery } from '@/Redux/services/Organization';
 import { useGenerateLinkMutation } from '@/Redux/services/ActiveQuotes';
+import { useGetSubscriptionByOrgQuery } from '@/Redux/services/Subscription';
 
 export type ViewType = 'home' | 'customer' | 'admin' | 'payment' | 'sales' | 'training-org';
 
@@ -29,8 +30,14 @@ export default function page() {
   const [checkoutData, setCheckoutData] = useState<CheckOutSummary | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<any[]>([]);
   const [unselAddon, setUnselAddon] = useState<any[]>([]);
-  const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery();  
-  
+  const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery();
+  console.log("AGENT", agent)
+  const {
+    data: subscriptionData, isLoading: subscriptionLoading, error: subscriptionError
+  } = useGetSubscriptionByOrgQuery(agent?.organizationId);
+
+
+
   const handleProceedToPayment = async (summary: CheckOutSummary) => {
     console.log("Summary received in handleProceedToPayment:", summary);
     setCheckoutData(summary);
@@ -53,15 +60,15 @@ export default function page() {
   };
 
 
-  const isLoading = agentLoading
-  const error = agentError 
-
+  const isLoading = agentLoading || subscriptionLoading
+  const error = agentError || subscriptionError
+  console.log("Subscription", subscriptionData)
 
   if (currentView === 'customer') {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <PricingProvider><CustomerPortal setAddOns={setSelectedAddOns} unselAddon={setUnselAddon}  agent={agent} onBack={() => navigateTo('home')} onCheckout={handleProceedToPayment} /></PricingProvider>
+        <PricingProvider><CustomerPortal setAddOns={setSelectedAddOns} unselAddon={setUnselAddon} agent={agent} onBack={() => navigateTo('home')} onCheckout={handleProceedToPayment} /></PricingProvider>
       </>
     );
   }
@@ -69,8 +76,8 @@ export default function page() {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <PaymentPage        
-        selAddon={selectedAddOns}
+        <PaymentPage
+          selAddon={selectedAddOns}
           agent={agent}
           agentRefetch={agentRefetch}
           summary={checkoutData}
@@ -96,7 +103,7 @@ export default function page() {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <PricingProvider><SalesAgentPortal user={agent} onBack={() => navigateTo('home')} /></PricingProvider>
+        <PricingProvider><SalesAgentPortal onBack={() => navigateTo('home')} user={agent} /></PricingProvider>
       </>
     );
   }
@@ -131,6 +138,8 @@ export default function page() {
     return null;
   }
 
+  
+
   return (
     <div className="min-h-screen bg-linear-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
       {/* Header */}
@@ -144,7 +153,7 @@ export default function page() {
         <div className="mb-8 flex justify-center">
           <div className='w-[60vw]'>
             {/* Customer Portal Card */}
-            {agent?.role === "CUSTOMER" && <Card
+            {agent?.role === "CUSTOMER"  && <Card
               className="group relative border-[#044866]/10 hover:border-[#044866]/30 hover:shadow-2xl transition-all cursor-pointer overflow-hidden"
               onClick={() => navigateTo('customer')}
             >

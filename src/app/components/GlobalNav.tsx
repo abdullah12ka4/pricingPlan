@@ -26,7 +26,6 @@ import {
 import { useGetNotificationQuery, useReadNotificationMutation } from '@/Redux/services/Notifications';
 import { SalesAgentType } from '../pages/AdminDashboard/Types/AdminType';
 import { timeAgo } from './Reusable/TimeAgo';
-import { useGetQuotesQuery } from '@/Redux/services/ActiveQuotes';
 
 interface GlobalNavProps {
   currentView: string;
@@ -38,17 +37,17 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
   if (!agent?.id) {
     return null;
   }
+  const [all, setAll] = useState(false)
   const [showProfile, setShowProfile] = useState(false);
   const router = useRouter();
-  const { data:notifications, isLoading: notificationLoading, error } = useGetNotificationQuery({ userId: agent?.id, isRead: undefined });
-  const { data: quotesData, isLoading: quotesLoading } = useGetQuotesQuery({ agentId: agent?.id })
+  const { data: notifications, isLoading: notificationLoading, error } = useGetNotificationQuery({ userId: agent?.id, isRead: undefined });
   const [readNotification] = useReadNotificationMutation();
   const handleLogOut = () => {
     Cookies.remove('accessToken');
     toast.success('Logged out');
     router.push('/login');
   };
-  const isLoading = notificationLoading || quotesLoading;
+  const isLoading = notificationLoading
 
   if (isLoading) {
     return (
@@ -71,21 +70,21 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
       </div>
     );
   }
-  const unreadNotifications = notifications?.filter((n: any) => n.isRead === false);
+  const onlyView = notifications?.slice(0, 3)
+  const wholeNot = all ? notifications : onlyView
+  const unreadNotifications = notifications?.length;
   const handleView = async (id: string) => {
     try {
       const res = await readNotification(id).unwrap();
-      toast.success("Message Read Successfully")
+      if (res.success) {
+        toast.success("Message Read Successfully")
+      }
     } catch (error) {
       console.log(error)
     }
 
   }
-  const handleConnect = (id: string)=>{
-    const same = notifications?.filter((n: any) => n.id === id);
-    console.log("Same", same)
-  }
-   return (
+  return (
     <header className="sticky top-0 z-50 border-b border-[#044866]/10 bg-white/80 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
         {/* Sidebar + Logo */}
@@ -109,7 +108,7 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
         {/* Actions */}
         <div className="flex items-center gap-5">
           {/* Notifications */}
-          {unreadNotifications.length > 0 && (
+          {unreadNotifications !== 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -120,7 +119,7 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
                 >
                   <Bell className="w-4 h-4 text-gray-600" />
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
-                    {unreadNotifications.length}
+                    {unreadNotifications}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
@@ -135,29 +134,24 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
                     variant="outline"
                     className="bg-red-50 text-red-600 border-red-200"
                   >
-                    {unreadNotifications.length} new
+                    {unreadNotifications} new
                   </Badge>
                 </DropdownMenuLabel>
 
                 <DropdownMenuSeparator />
 
-                {notifications.map((n: any) => (
+                {wholeNot?.map((n: any) => (
                   <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleView(n.id);
+                    }}
                     key={n.id}
                     className="flex flex-col items-start py-3"
                   >
                     <div className="flex items-center justify-between w-full ">
                       <span className="text-sm text-gray-700">{n.message}</span>
-                       <button
-                        type="button"
-                        onClick={(e) => {
-                          handleConnect(n.id)
-                          e.stopPropagation();
-                          handleView(n.id);
-                        }}
-                      >
-                        {n.isRead ? <MailOpen className="w-4 h-4 text-gray-600" /> : <Mail className="w-4 h-4 text-gray-600" />}
-                      </button>
+                      <Mail className="w-4 h-4 text-gray-600" />
                     </div>
                     <span className="text-xs text-gray-500">
                       {timeAgo(n.createdAt)}
@@ -166,8 +160,10 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
                 ))}
 
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="justify-center text-xs text-[#044866]">
-                  View all notifications
+                <DropdownMenuItem
+                  onClick={() => setAll(!all)}
+                  className="justify-center text-xs text-[#044866]">
+                  {all ? "View Less" : "View all notifications"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

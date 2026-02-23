@@ -45,6 +45,8 @@ export interface SalesWizardForm {
     notes: string;
     requiresApproval: boolean;
   };
+  selAddons?: AddOnItem[];
+  unSelAddons?: AddOnItem[];
 }
 
 // ✅ Fixed broken template literal syntax
@@ -97,6 +99,7 @@ interface QuoteRequestBody {
 }
 
 export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => void, user: any }) {
+  const [view, setView] = useState(false)
   const [currentStep, setCurrentStep] = useState<Step>('dashboard');
   const [SelectedQuotes, setSelectedQuotes] = useState<string | null>(null)
   const [linkExpiry, setlinkExpiry] = useState(7)
@@ -345,7 +348,7 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
   const renderStep = () => {
     switch (currentStep) {
       case 'dashboard':
-        return <Dashboard id={user?.id} setCurrentStep={setCurrentStep} />;
+        return <Dashboard setView={setView} id={user?.id} setCurrentStep={setCurrentStep} setSelectedQuotes={setSelectedQuotes} />;
       case 'client-info':
         return <Step1 />;
       case 'org-type':
@@ -357,7 +360,7 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
       case 'network':
         return <Step5 data={networkCredit || []} />; // ✅ Fixed typo
       case 'addons':
-        return <Step6 data={addonData || []}/>;
+        return <Step6 data={addonData || []} />;
       case 'discount':
         return <Step7 />;
       case 'review':
@@ -384,11 +387,13 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
           <p className="text-sm">
             {(error as { status?: number }).status || "Network Error"}: {(error as { error?: string }).error || "Failed to fetch data"}
           </p>
-          <button onClick={()=> onBack} className="mt-4 px-4 py-2 bg-gray-200 rounded">Go Back</button>
+          <button onClick={() => onBack} className="mt-4 px-4 py-2 bg-gray-200 rounded">Go Back</button>
         </div>
       </div>
     );
   }
+
+  console.log(view)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
@@ -398,7 +403,13 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
           <div className="flex items-center justify-between">
             <button
               type="button"
-              onClick={() => setCurrentStep('dashboard')}
+              onClick={() => {
+                if (currentStep === 'dashboard') {
+                  onBack('home');
+                } else {
+                  setCurrentStep('dashboard');
+                }
+              }}
               className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -432,7 +443,7 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
                     if (prev) setCurrentStep(prev);
                     else setCurrentStep('dashboard');
                   }}
-                  className="px-6 py-3 border-2 border-[#044866]/20 text-[#044866] rounded-xl hover:border-[#044866] transition-all"
+                  className={`${view ? 'hidden' : 'block'} px-6 py-3 border-2 border-[#044866]/20 text-[#044866] rounded-xl hover:border-[#044866] transition-all`}
                 >
                   {currentStep === 'client-info'
                     ? 'Back to Dashboard'
@@ -440,7 +451,6 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
                 </button>
 
                 <button
-
                   type="button"
                   disabled={!isStepValid}
                   onClick={handleContinue}

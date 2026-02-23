@@ -36,7 +36,7 @@ export type Quote = {
 export const salesAgentApi = createApi({
   reducerPath: 'salesAgentApi',
   baseQuery: header,
-  tagTypes: ['SalesAgent', 'DashboardAnalytics', 'AgentAnalytics'],
+  tagTypes: ['SalesAgent'],
   endpoints: (builder) => ({
     addSalesAgent: builder.mutation<any, any>({
       query: (body) => ({
@@ -68,12 +68,12 @@ export const salesAgentApi = createApi({
       invalidatesTags: ['SalesAgent'],
     }),
     getAgentAnalytics: builder.query<any, string | void>({
-      query: (id) => `/api/v1/analytics/agents?agentId=${id}`,
-      providesTags: (result, error, id) => id ? [{ type: 'AgentAnalytics', id }] : [],
+      query: (agentId) => `/api/v1/analytics/agents?agentId=${agentId}`,
+      providesTags: ['SalesAgent'],
     }),
     getDashboard: builder.query<any, void>({
       query: () => `/api/v1/analytics/metrics`,
-      providesTags: ['DashboardAnalytics']
+      providesTags: ['SalesAgent']
     })
   })                                                                     
 })

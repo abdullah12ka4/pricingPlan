@@ -30,13 +30,13 @@ export default function NetworkPack() {
     );
   }
 
-  // console.log(data)
-
   const handleDelete = async (id: string) => {
     try {
       if (id) {
-        await deleteNetwork(id).unwrap();
+        const res = await deleteNetwork(id).unwrap();
+        if(res?.id){
         toast.success('Network package deleted successfully!');
+        }
       }
     } catch (error) {
       toast.error('Failed to delete network package.');
@@ -48,8 +48,7 @@ export default function NetworkPack() {
     setselectedNetwork(pack);
   }
 
-  console.log(data)
-  return (
+ return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">

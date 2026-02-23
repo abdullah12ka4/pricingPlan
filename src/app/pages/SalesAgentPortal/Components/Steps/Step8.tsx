@@ -22,16 +22,15 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
     const [showLinkModal, setShowLinkModal] = useState(false)
     const [copiedLink, setCopiedLink] = useState(false)
 
-
-    const [generateLink, { isLoading: linkGenerating, error: linkGeneratingError, data: generatedLinkData }] = useGenerateLinkMutation();
+    const [generateLink] = useGenerateLinkMutation();
 
 
 
     if (!id) return null;
     const { data: getQuotesOne, isLoading: QuotesLoading, error: QuotesError } = useGetSpecificQuotesQuery(id);
 
-    const isLoading = linkGenerating || QuotesLoading;
-    const error = linkGeneratingError || QuotesError
+    const isLoading = QuotesLoading;
+    const error =  QuotesError
     if (isLoading) {
         return (
             <div className="flex h-screen items-center justify-center">

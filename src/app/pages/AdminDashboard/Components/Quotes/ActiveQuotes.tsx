@@ -30,7 +30,6 @@ export default function ActiveQuotes() {
     );
   }
 
-  console.log(data)
 
   const activeQuotes = data?.data.quotes
   const totalQuotes = activeQuotes.length;
@@ -242,16 +241,48 @@ export default function ActiveQuotes() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        <button className="p-1.5 hover:bg-[#044866]/10 rounded transition-colors" title="View">
+                        {/* <button className="p-1.5 hover:bg-[#044866]/10 rounded transition-colors" title="View">
                           <Eye className="w-4 h-4 text-gray-600" />
-                        </button>
+                        </button> */}
                         {quote.status === 'PENDING_APPROVAL' && (
                           <>
-                            <button className="p-1.5 hover:bg-green-50 rounded transition-colors" title="Approve">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await approveQuotes({
+                                    id: quote.id,
+                                    body: {
+                                      approved: true,
+                                      notes: 'Approved by Admin'
+                                    }
+                                  })
+                                  if (res?.data?.success) {
+                                    toast.success('Quote Approved Successfully')
+                                  }
+                                } catch (error) {
+
+                                }
+                              }}
+                              className="p-1.5 hover:bg-green-50 rounded transition-colors" title="Approve">
                               <CheckCircle className="w-4 h-4 text-green-600" />
                             </button>
                             <button
-                              onClick={() => { onDelete(quote.id) }}
+                              onClick={async () => {
+                                try {
+                                  const res = await approveQuotes({
+                                    id: quote.id,
+                                    body: {
+                                      approved: false,
+                                      notes: 'Not Allowed'
+                                    }
+                                  })
+                                  if (res?.data?.success) {
+                                    toast.success('Quote Rejected')
+                                  }
+                                } catch (error) {
+                                  console.log(error)
+                                }
+                              }}
                               className="p-1.5 hover:bg-red-50 rounded transition-colors" title="Reject">
                               <Trash2 className="w-4 h-4 text-red-600" />
                             </button>

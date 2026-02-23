@@ -38,10 +38,10 @@ export function PricingTiersForm({ setShowCreateModal, tier }: { setShowCreateMo
           id: tier.id,
           editPayload
         }).unwrap()
-
-        console.log("EDIT PRICING", res)
-        toast.success("Successfully Edited")
-        setShowCreateModal(false)
+        if (res?.success) {
+          toast.success("Successfully Edited")
+          setShowCreateModal(false)
+        }
       }
       else {
         const res = await addPricingTiers(processedData).unwrap()

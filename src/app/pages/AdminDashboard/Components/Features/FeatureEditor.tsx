@@ -61,7 +61,7 @@ export function FeatureEditor() {
   const handleDelete = async (id?: string) => {
     if (!id) return;
     try {
-      await deleteFeature(id).unwrap();
+      const res = await deleteFeature(id).unwrap();
       setEditingFeatures(prev => prev.filter(f => f.id !== id));
       toast.success("Feature deleted successfully");
     } catch (err) {

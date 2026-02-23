@@ -26,6 +26,7 @@ import ActiveQuotes from './Components/Quotes/ActiveQuotes';
 import Features from './Components/Features/Features';
 import { AdminDashboardProps, AdminView } from './Types/AdminType';
 import Dashboard from './Dashboard';
+import { useGetQuotesQuery } from '@/Redux/services/ActiveQuotes';
 
 
 // Mock data for dashboard stats
@@ -40,51 +41,9 @@ const dashboardStats = {
   churRate: 2.1
 };
 
-// Mock data for sales agents
-const salesAgents = [
-  {
-    id: 'SA-001',
-    name: 'Sarah Johnson',
-    email: 'sarah.j@skiltrak.com',
-    role: 'Senior Sales',
-    activeQuotes: 8,
-    totalSales: 145000,
-    conversionRate: 72,
-    status: 'active'
-  },
-  {
-    id: 'SA-002',
-    name: 'Mike Chen',
-    email: 'mike.c@skiltrak.com',
-    role: 'Sales Agent',
-    activeQuotes: 5,
-    totalSales: 98000,
-    conversionRate: 65,
-    status: 'active'
-  },
-  {
-    id: 'SA-003',
-    name: 'Emma Wilson',
-    email: 'emma.w@skiltrak.com',
-    role: 'Sales Agent',
-    activeQuotes: 6,
-    totalSales: 112000,
-    conversionRate: 68,
-    status: 'active'
-  },
-  {
-    id: 'SA-004',
-    name: 'David Lee',
-    email: 'david.l@skiltrak.com',
-    role: 'Sales Manager',
-    activeQuotes: 4,
-    totalSales: 187000,
-    conversionRate: 78,
-    status: 'active'
-  }
-];
 
 export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
+  const {data:quotes} = useGetQuotesQuery()
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
 
   const renderNavigation = () => {
@@ -118,7 +77,7 @@ export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
-              const pendingCount = item.id === 'active-quotes' ? dashboardStats.pendingApprovals : 0;
+              const pendingCount = item.id === 'active-quotes' ? quotes?.data?.quotes?.filter((quote: any) => quote.status === 'PENDING_APPROVAL').length : 0;
 
               return (
                 <button
@@ -140,16 +99,6 @@ export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
               );
             })}
           </div>
-        </div>
-
-        <div className="pt-4 border-t border-gray-100">
-          <button
-            onClick={()=> onBack}
-            className="w-full flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-[#044866] transition-colors text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </button>
         </div>
       </div>
     );

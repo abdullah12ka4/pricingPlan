@@ -2,26 +2,23 @@
 
 import { useFormContext } from 'react-hook-form';
 import { AddOnCard } from '@/app/components/pricing/AddOnCard';
-import { Spinner } from '@/app/components/ui/spinner';
-import { useGetAddOnsQuery } from '@/Redux/services/AddOns';
 import { Package } from 'lucide-react';
 import { AddOn, AddOnItem } from '@/app/pages/AdminDashboard/Types/AdminType';
 import type { SalesWizardForm } from '../../SalesAgentPortal'; // adjust path
-import { useEffect, useRef } from 'react';
+import { useEffect} from 'react';
 
-export default function Step6({ data, existingAddOn }: { data: AddOn[], existingAddOn?: any }) {
+export default function Step6({ data }: { data: AddOn[] }) {
   const { watch, setValue } = useFormContext<SalesWizardForm>();
-  console.log("AddOndata", data)
-  console.log("existingAddOn", existingAddOn)
+
   const selectedPlan = watch('plan');
   const addOnItems = (watch('addOns') ?? []) as AddOnItem[];
-  console.log("ITEMS", addOnItems)
-
 
   const handleAddOnToggle = (addOnId: string) => {
     const existingIndex = addOnItems.findIndex(
       (item) => item.addonId === addOnId
     );
+
+    console.log("existingIndex", existingIndex)
 
     if (existingIndex >= 0) {
       // Remove existing

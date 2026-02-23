@@ -1,21 +1,25 @@
-import { ArrowUpRight, Award, BarChart3, CheckCircle, ChevronRight, Clock, DollarSign, Eye, FileText, Plus, Send, Target, TrendingUp, Users } from 'lucide-react'
+import { ArrowUpRight, Award, BarChart3, CheckCircle, ChevronRight, Clock, DollarSign, Eye, FileText, PersonStanding, Plus, Send, Target, TrendingUp, Users } from 'lucide-react'
 import { Step } from '../SalesAgentPortal';
 import { useGetAgentAnalyticsQuery } from '@/Redux/services/SalesAgent';
 import { Spinner } from '@/app/components/ui/spinner';
-import { useGetQuotesQuery } from '@/Redux/services/ActiveQuotes';
-import { useState } from 'react';
+import { useGetQuotesQuery, useGetSpecificQuotesQuery } from '@/Redux/services/ActiveQuotes';
+import { useEffect, useState } from 'react';
 
 
-export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (value: Step) => void, id: string | null }) {
+export default function Dashboard({ setView, setCurrentStep, id, setSelectedQuotes }: { setView: (value: boolean) => void, setCurrentStep: (value: Step) => void, id: string | null, setSelectedQuotes: (value: string | null) => void }) {
+  
+  
   const [showAllQuotes, setShowAllQuotes] = useState(false);
   if (!id) return null;
-  const { data: agentAnalytics, isLoading: loadingAnalytics, error: analyticsError } = useGetAgentAnalyticsQuery(id);
+  
+  console.log("AGENTID", id)
+  const { data: agentAnalytics, isLoading: loadingAnalytics, error: analyticsError } = useGetAgentAnalyticsQuery();
   // const { data: quotes, isLoading: loadQuotes, error: quoteError } = useGetQuotesQuery(id!, { skip: !id })
-  const { data: quotes, isLoading: loadQuotes, error: quoteError } = useGetQuotesQuery({id})
+  const { data: quotes, isLoading: loadQuotes, error: quoteError } = useGetQuotesQuery()
 
   const loading = loadingAnalytics || loadQuotes;
-  const error = analyticsError || quoteError
 
+  console.log("agentAnalytics", agentAnalytics)
 
   if (loading) {
     return (
@@ -24,16 +28,6 @@ export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (val
       </div>
     );
   }
-  // Mock data for dashboard
-
-
-  // const recentQuotes = [
-  //   { id: 'Q-2401', client: 'Melbourne Training Institute', amount: 24500, status: 'sent', date: '2 hours ago', orgType: 'RTO' },
-  //   { id: 'Q-2400', client: 'Sydney Business School', amount: 12800, status: 'viewed', date: '5 hours ago', orgType: 'School' },
-  //   { id: 'Q-2399', client: 'Brisbane TAFE', amount: 18900, status: 'paid', date: '1 day ago', orgType: 'TAFE' },
-  //   { id: 'Q-2398', client: 'Corporate Learning Hub', amount: 31200, status: 'sent', date: '1 day ago', orgType: 'Corporate' },
-  //   { id: 'Q-2397', client: 'Adelaide University', amount: 45600, status: 'viewed', date: '2 days ago', orgType: 'University' }
-  // ];
 
   const myStats = {
     monthRevenue: 187000,
@@ -48,8 +42,6 @@ export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (val
 
 
   const allQuotes = quotes?.data?.quotes ?? [];
-
-  // newest first
   const sortedQuotes = [...allQuotes].sort(
     (a, b) =>
       new Date(b.created_at).getTime() -
@@ -70,6 +62,15 @@ export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (val
   };
 
   console.log(agentAnalytics)
+
+  const handleviewQuote = (id: string) => {
+    console.log("Viewing quote:", id)
+    if (id) {
+      setSelectedQuotes(id)
+      setCurrentStep('review')
+      setView(true)
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -153,7 +154,9 @@ export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (val
             Configure a custom package for your client and generate a secure payment link in minutes
           </p>
           <button
-            onClick={() => setCurrentStep('client-info')}
+            onClick={() => {setCurrentStep('client-info')
+              setView(false)
+            }}
             className="px-10 py-4 bg-white text-[#044866] rounded-xl hover:bg-gray-50 transition-all shadow-lg text-base flex items-center gap-3 mx-auto group"
           >
             <Plus className="w-5 h-5" />
@@ -179,55 +182,56 @@ export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (val
 
         <div className="space-y-3">
           {displayedQuotes.length <= 0 ? <div>No Quotes Found</div> : displayedQuotes.map((quote) => (
-                <div key={quote.id} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className="text-sm text-gray-900">{quote.client_organization}</span>
-                      <span className="px-2 py-0.5 bg-[#044866]/10 text-[#044866] rounded-full text-xs">
-                        {quote.organization_type}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <FileText className="w-3 h-3" />
-                        {quote.quote_number}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {timeAgo(quote.created_at)}
-                      </span>
-                    </div>
-                  </div>
+            <div
+              onClick={() => handleviewQuote(quote.id)}
+              key={quote.id} className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="text-sm text-gray-900">{quote.client_organization}</span>
+                  <span className="px-2 py-0.5 bg-[#044866]/10 text-[#044866] rounded-full text-xs">
+                    {quote.organization_type}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-gray-600">
+                  <span className="flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    {quote.quote_number}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {timeAgo(quote.created_at)}
+                  </span>
+                </div>
+              </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-base text-gray-900">${quote.total_amount.toLocaleString()}</div>
-                      <div className={`text-xs flex items-center justify-end gap-1 ${quote.status === 'PAID'
-                        ? 'text-green-600'
-                        : quote.status === 'VIEWED'
-                          ? 'text-blue-600'
-                          : 'text-gray-600'
-                        }`}>
-                        {quote.status === 'PAID' && <CheckCircle className="w-3 h-3" />}
-                        {quote.status === 'VIEWED' && <Eye className="w-3 h-3" />}
-                        {quote.status === 'SENT' && <Send className="w-3 h-3" />}
-                        {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
-                      </div>
-                    </div>
-
-                    <button type='button' className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    </button>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <div className="text-base text-gray-900">${quote.total_amount.toLocaleString()}</div>
+                  <div className={`text-xs flex items-center justify-end gap-1 ${quote.status === 'PAID'
+                    ? 'text-green-600'
+                    : quote.status === 'VIEWED' 
+                      ? 'text-blue-600': quote.status === "PENDING_APPROVAL" ? 'text-red-600' : quote.status === 'SENT' ? 'text-blue-700' : 'text-yellow-400'
+                    }`}>
+                    {quote.status === 'PAID' && <CheckCircle className="w-3 h-3" />}
+                    {quote.status === 'VIEWED' && <Eye className="w-3 h-3" />}
+                    {quote.status === 'SENT' && <Send className="w-3 h-3" />}
+                    {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
                   </div>
                 </div>
-              ))
-            }
+
+                <button type='button' className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+            </div>
+          ))
+          }
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-5 mt-8">
+      {/* <div className="grid grid-cols-3 gap-5 mt-8">
         <button type='button' className="p-6 bg-white border border-gray-100 rounded-2xl hover:shadow-lg transition-all text-left group">
           <div className="w-12 h-12 bg-gradient-to-br from-[#044866]/10 to-[#0D5468]/5 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <BarChart3 className="w-6 h-6 text-[#044866]" />
@@ -251,7 +255,7 @@ export default function Dashboard({ setCurrentStep, id }: { setCurrentStep: (val
           <h4 className="text-base text-gray-900 mb-1">Leaderboard</h4>
           <p className="text-sm text-gray-600">See how you rank</p>
         </button>
-      </div>
+      </div> */}
     </div>
   )
 }

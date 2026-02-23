@@ -20,9 +20,11 @@ export function AddOnsForm({ setModal , addData}: { setModal: (show: boolean) =>
     }
     try {
       if(addData?.id){
-        await editEddOns({id: addData.id, Addpayload: processedData}).unwrap() 
-        setModal(false)
-        toast.success('Successfully Edited Add Ons') 
+        const res = await editEddOns({id: addData.id, Addpayload: processedData}).unwrap() 
+        if(res?.id){
+          setModal(false)
+          toast.success('Successfully Edited Add Ons') 
+        }
       }
       else{
       const res = await addOns(processedData).unwrap()

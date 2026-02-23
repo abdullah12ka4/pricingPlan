@@ -11,7 +11,7 @@ type PricingTier = {
   organisationType: string;
   planType: 'BASIC' | 'PREMIUM';
   description: string;
-  annualPrice: string | number;
+  annualPrice: string | number
   // add other fields as needed
 };
 
