@@ -107,7 +107,7 @@ export function FeatureEditor() {
 
       <button
         onClick={handleAddFeature}
-        className="flex items-center gap-2 px-3.5 py-2.5 border-2 border-dashed border-[#044866]/20 rounded-lg hover:border-[#044866]/40 hover:bg-[#044866]/5 w-full justify-center text-sm text-[#044866] transition-all"
+        className="cursor-pointer flex items-center gap-2 px-3.5 py-2.5 border-2 border-dashed border-[#044866]/20 rounded-lg hover:border-[#044866]/40 hover:bg-[#044866]/5 w-full justify-center text-sm text-[#044866] transition-all"
       >
         <Plus className="w-3.5 h-3.5" /> Add New Feature
       </button>

@@ -67,7 +67,7 @@ export default function SalesAgent() {
         </div>
         <button
           onClick={() => { setSelectedAgent(null); setShowModal(true) }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
+          className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
         >
           <Plus className="w-4 h-4" />
           Add Agent
@@ -144,13 +144,13 @@ export default function SalesAgent() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleView(agent)}
-                  className="flex-1 px-3 py-2 border border-[#044866]/20 text-[#044866] rounded-lg text-sm hover:bg-[#044866]/5 transition-colors"
+                  className="cursor-pointer flex-1 px-3 py-2 border border-[#044866]/20 text-[#044866] rounded-lg text-sm hover:bg-[#044866]/5 transition-colors"
                 >
                   View Details
                 </button>
                 <button
                   onClick={() => handleEdit(agent)}
-                  className="px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                  className="cursor-pointer px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors"
                 >
                   <Edit className="w-4 h-4" />
                 </button>

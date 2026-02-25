@@ -8,7 +8,6 @@ import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Progress } from '../../components/ui/progress';
-import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { PackageManagement } from '@/app/components/PackageManagement';
@@ -274,6 +273,8 @@ export function TrainingOrgPortal({ onBack, org }: TrainingOrgPortalProps) {
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
     const [expandedQuarters, setExpandedQuarters] = useState<string[]>([]); // Will be set after data loads
     const { data: invoiceData, isLoading: isLoadingInvoice } = useGetInvoiceByOrgIdQuery(org?.id);
+
+    console.log("invoice", invoiceData)
     const [invoiceSearch, setInvoiceSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const mapInvoices = (apiInvoices: any[]) => {

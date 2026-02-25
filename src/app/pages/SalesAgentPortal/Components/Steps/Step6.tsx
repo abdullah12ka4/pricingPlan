@@ -4,10 +4,9 @@ import { useFormContext } from 'react-hook-form';
 import { AddOnCard } from '@/app/components/pricing/AddOnCard';
 import { Package } from 'lucide-react';
 import { AddOn, AddOnItem } from '@/app/pages/AdminDashboard/Types/AdminType';
-import type { SalesWizardForm } from '../../SalesAgentPortal'; // adjust path
-import { useEffect} from 'react';
+import type { SalesWizardForm, Step } from '../../SalesAgentPortal'; // adjust path
 
-export default function Step6({ data }: { data: AddOn[] }) {
+export default function Step6({ data, setCurrentStep}: { data: AddOn[], setCurrentStep?: React.Dispatch<React.SetStateAction<Step>> }) {
   const { watch, setValue } = useFormContext<SalesWizardForm>();
 
   const selectedPlan = watch('plan');
@@ -134,7 +133,10 @@ export default function Step6({ data }: { data: AddOn[] }) {
       <div className="mt-4 text-center">
         <button
           type="button"
-          onClick={() => setValue('addOns', [], { shouldValidate: true })}
+          onClick={() => {
+            setValue('addOns', [], { shouldValidate: true })
+            setCurrentStep?.('discount')            
+          } }
           className="text-sm text-gray-600 hover:text-gray-800"
         >
           Continue without add-ons

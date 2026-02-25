@@ -9,7 +9,7 @@ import { TABLETYPE } from '../../Types/AdminType';
 
 
 export default function PricingTableFilters({ setModal, editTier }: { setModal: (show: boolean) => void, editTier: (tier: TABLETYPE) => void }) {
-  const { data = [], isLoading, error } = useGetPricingTiersQuery()
+  const { data = [], isLoading, error, refetch } = useGetPricingTiersQuery()
   const [searchData, setsearchData] = useState<TABLETYPE[]>([])
   const [filterQuery, setfilterQuery] = useState<'all' | string>('all')
   const [searchQuery, setsearchQuery] = useState('')
@@ -83,8 +83,11 @@ export default function PricingTableFilters({ setModal, editTier }: { setModal: 
   const handleDelete = async (id: string | undefined) => {
     try {
       if (id) {
-        await deleteTier(id).unwrap()
-        toast.success('Tiers Deleted Successfully')
+        const res = await deleteTier(id).unwrap()
+        if (res.success) {
+          toast.success('Tiers Deleted Successfully')
+          refetch()
+        }
       }
     } catch (error) {
       console.error('Delete failed', error);

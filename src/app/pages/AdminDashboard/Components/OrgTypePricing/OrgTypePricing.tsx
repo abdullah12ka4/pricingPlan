@@ -93,7 +93,7 @@ const processedData = Object.values(
             </div>
 
             {processedData.length < 1 && <div className='flex h-[40vh] items-center justify-center'>
-                No Organization Added Yet For Plans
+                No organization added yet for plans
             </div> }
 
             {/* Pricing Cards */}

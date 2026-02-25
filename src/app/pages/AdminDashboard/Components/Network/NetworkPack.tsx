@@ -34,8 +34,8 @@ export default function NetworkPack() {
     try {
       if (id) {
         const res = await deleteNetwork(id).unwrap();
-        if(res?.id){
-        toast.success('Network package deleted successfully!');
+        if (res?.id) {
+          toast.success('Network package deleted successfully!');
         }
       }
     } catch (error) {
@@ -48,7 +48,7 @@ export default function NetworkPack() {
     setselectedNetwork(pack);
   }
 
- return (
+  return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -61,7 +61,7 @@ export default function NetworkPack() {
             setshowModal(true)
             setselectedNetwork(null)
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
+          className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
         >
           <Plus className="w-4 h-4" />
           Create Network
@@ -69,7 +69,10 @@ export default function NetworkPack() {
       </div>
       {showModal && <NetworkPackForm modal={setshowModal} selectedNetwork={selectedNetwork} />}
       {/* Network Packs Grid */}
-      <div className="grid grid-cols-3 gap-5">
+      {data?.length < 1 && <div className='flex h-[40vh] items-center justify-center'>
+        No Network Added Yet For Plans
+      </div>}<div className="grid grid-cols-3 gap-5">
+
         {data?.map((pack: NetworkType) => (
           <div key={pack.id} className="bg-white border-2 border-[#044866]/10 rounded-xl p-5 hover:border-[#044866]/30 hover:shadow-lg transition-all group relative">
 

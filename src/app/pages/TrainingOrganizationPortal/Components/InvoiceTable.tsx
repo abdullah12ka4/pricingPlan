@@ -18,8 +18,7 @@ export const InvoiceTable = ({ mockInvoices , setSelectedInvoice, setShowInvoice
     const [invoiceSearch, setInvoiceSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
 
-
-    const filteredInvoices = mockInvoices.filter(invoice => {
+    const filteredInvoices = mockInvoices?.filter(invoice => {
         const matchesSearch = invoice.id.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
             invoice.description.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
             (invoice.paymentReference && invoice.paymentReference.toLowerCase().includes(invoiceSearch.toLowerCase()));
@@ -123,7 +122,7 @@ export const InvoiceTable = ({ mockInvoices , setSelectedInvoice, setShowInvoice
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredInvoices.length === 0 ? (
+                            {!filteredInvoices ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center py-16">
                                         <div className="flex flex-col items-center gap-3">
@@ -136,7 +135,7 @@ export const InvoiceTable = ({ mockInvoices , setSelectedInvoice, setShowInvoice
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filteredInvoices.map((invoice, index) => (
+                                filteredInvoices?.map((invoice, index) => (
                                     <motion.tr
                                         key={invoice.id}
                                         initial={{ opacity: 0, y: 10 }}
@@ -199,7 +198,7 @@ export const InvoiceTable = ({ mockInvoices , setSelectedInvoice, setShowInvoice
                 </div>
 
                 {/* Invoice Summary */}
-                {filteredInvoices.length > 0 && (
+                {filteredInvoices?.length > 0 && (
                     <div className="mt-6 p-6 bg-gradient-to-r from-[#044866]/5 via-blue-50/50 to-emerald-50/50 rounded-xl border-2 border-slate-200/60">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                             <div>

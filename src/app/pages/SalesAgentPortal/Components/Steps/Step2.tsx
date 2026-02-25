@@ -108,6 +108,7 @@ export default function Step2({ org, data }: { org: string, data: Plan[] }) {
     setValue('organizationId', id, { shouldValidate: true });
   }
 
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="text-center mb-8">
@@ -119,8 +120,9 @@ export default function Step2({ org, data }: { org: string, data: Plan[] }) {
           Choose the type that best matches {org}
         </p>
       </div>
-
+ {orgCards.length === 0 && <p className='text-center font-semibold text-xl'>No organization available</p>}
       <div className="grid md:grid-cols-3 gap-5">
+       
         {orgCards.map((card) => {
           const Icon = card.icon;
           const isSelected = selectedOrgType === card.organisationType && selectedOrgId === card.organisationId;

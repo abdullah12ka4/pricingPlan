@@ -4,8 +4,10 @@ import { toast } from "sonner";
 import { NetworkType } from "../../Types/AdminType";
 
 export default function NetworkPackForm({ modal, selectedNetwork }: { modal: (value: boolean) => void, selectedNetwork: NetworkType | null }) {
-    const [addNetwork] = useAddNetworkMutation();
-    const [editNetwork] = useEditNetworkMutation();
+    const [addNetwork, { isLoading: addLoading }] = useAddNetworkMutation();
+    const [editNetwork, { isLoading: editLoading }] = useEditNetworkMutation();
+
+    const isLoading = addLoading || editLoading;
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -98,15 +100,15 @@ export default function NetworkPackForm({ modal, selectedNetwork }: { modal: (va
                     <button
                         type="button"
                         onClick={() => modal(false)}
-                        className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
+                        className="cursor-pointer flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
-                        className="flex-1 px-6 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg transition-all"
+                        className="cursor-pointer flex-1 px-6 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg transition-all"
                     >
-                        {selectedNetwork ? 'Save Changes' : 'Create Package'}
+                        {isLoading ? 'Creating...' : selectedNetwork ? 'Save Changes' : 'Create Package'}
                     </button>
                 </div>
             </form>

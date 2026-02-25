@@ -120,7 +120,7 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
     error: addOnError,
   } = useGetAddOnsQuery();
 
-  const [addQuotes] = useAddQuotesMutation()
+  const [addQuotes, { isLoading: addQuoteLoading }] = useAddQuotesMutation()
 
   // Global Loading & Error State
   const loading = networkLoading || addonLoading;
@@ -360,7 +360,7 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
       case 'network':
         return <Step5 data={networkCredit || []} />; // ✅ Fixed typo
       case 'addons':
-        return <Step6 data={addonData || []} />;
+        return <Step6 data={addonData || []} setCurrentStep={setCurrentStep} />;
       case 'discount':
         return <Step7 />;
       case 'review':
@@ -393,28 +393,24 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
     );
   }
 
-  console.log(view)
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#044866] to-[#0D5468] border-b border-white/10 sticky top-0 z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                if (currentStep === 'dashboard') {
-                  onBack('home');
-                } else {
-                  setCurrentStep('dashboard');
-                }
+            {currentStep !== 'dashboard' &&  <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep('dashboard')
               }}
               className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm">Back to Dashboard</span>
-            </button>
+            </button>}           
+
+
 
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
@@ -443,7 +439,7 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
                     if (prev) setCurrentStep(prev);
                     else setCurrentStep('dashboard');
                   }}
-                  className={`${view ? 'hidden' : 'block'} px-6 py-3 border-2 border-[#044866]/20 text-[#044866] rounded-xl hover:border-[#044866] transition-all`}
+                  className={`${view ? 'hidden' : 'block'} cursor-pointer px-6 py-3 border-2 border-[#044866]/20 text-[#044866] rounded-xl hover:border-[#044866] transition-all`}
                 >
                   {currentStep === 'client-info'
                     ? 'Back to Dashboard'
@@ -454,9 +450,9 @@ export function SalesAgentPortal({ onBack, user }: { onBack: (value: string) => 
                   type="button"
                   disabled={!isStepValid}
                   onClick={handleContinue}
-                  className={`px-8 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${currentStep === 'review' ? 'hidden' : 'block'}`}
+                  className={`cursor-pointer px-8 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${currentStep === 'review' ? 'hidden' : 'block'}`}
                 >
-                  {currentStep === 'discount' ? 'Create Quote' : 'Continue'}
+                  {currentStep === 'discount' ? addQuoteLoading ? 'Creating Quote...' : 'Create Quote' : 'Continue'}
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

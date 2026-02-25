@@ -5,8 +5,12 @@ import { TABLETYPE } from "../../Types/AdminType";
 import { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 
 export function PricingTiersForm({ setShowCreateModal, tier }: { setShowCreateModal: (show: boolean) => void, tier: TABLETYPE | null }) {
-  const [addPricingTiers] = useAddPricingTiersMutation();
-  const [editPricingTiers] = useEditPricingTiersMutation()
+  const [addPricingTiers, { isLoading: addLoading }] = useAddPricingTiersMutation();
+  const [editPricingTiers, { isLoading: editLoading }] = useEditPricingTiersMutation()
+
+  const isLoading = addLoading || editLoading;
+
+
 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -180,15 +184,15 @@ export function PricingTiersForm({ setShowCreateModal, tier }: { setShowCreateMo
               setShowCreateModal(false)
 
             }}
-            className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
+            className="cursor-pointer flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 px-6 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg transition-all"
+            className="cursor-pointer flex-1 px-6 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg transition-all"
           >
-            {tier ? 'Update Tier' : 'Create Tier'}
+            {isLoading ? 'Creating...' : tier ? 'Update Tier' : 'Create Tier'}
           </button>
         </div>
       </form>

@@ -11,7 +11,7 @@ export default function Modal({children, setModal, title}:{children: ReactNode, 
               </h3>
               <button
                 onClick={() => setModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <Plus className="w-5 h-5 text-gray-500 rotate-45" />
               </button>

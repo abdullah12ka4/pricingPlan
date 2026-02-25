@@ -5,8 +5,12 @@ import { addons } from "../../Types/AdminType";
 
 
 export function AddOnsForm({ setModal , addData}: { setModal: (show: boolean) => void , addData: addons | null}) {
-  const [ addOns ] =  useAddOnsMutation()
-  const [editEddOns] = useEditAddOnsMutation();
+  const [ addOns, { isLoading: addLoading } ] =  useAddOnsMutation()
+  const [editEddOns, { isLoading: editLoading } ] = useEditAddOnsMutation();
+
+
+  const isLoading = addLoading || editLoading;
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -144,15 +148,15 @@ export function AddOnsForm({ setModal , addData}: { setModal: (show: boolean) =>
         <button
           type="button"
           onClick={() => setModal(false)}
-          className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
+          className="cursor-pointer flex-1 px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="flex-1 px-6 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg transition-all"
+          className="cursor-pointer flex-1 px-6 py-3 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-xl hover:shadow-lg transition-all"
         >
-          {addData ? 'Update Add-on':'Create Add-on'}
+          {isLoading ? 'Creating...': addData ? 'Update Add-on':'Create Add-on'}
         </button>
       </div>
     </form>    

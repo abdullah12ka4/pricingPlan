@@ -34,8 +34,6 @@ export default function Dashboard({ setView }: { view: string, setView: (value: 
     );
   }
 
-  console.log("AGENT ANALYTICS", agentAnalytics)
-  console.log("AUDIT DATA", auditData)
   const dashboardStats = data?.data
   const activeQuotes = quoteData.data.quotes
   const pendingQuotes = activeQuotes.filter(
@@ -226,107 +224,115 @@ export default function Dashboard({ setView }: { view: string, setView: (value: 
       )}
       {/* Recent Activity */}
       <div className="grid grid-cols-2 gap-5">
-        <div className="bg-white border border-[#044866]/10 rounded-xl p-5">
-          <h3 className="text-base text-[#044866] mb-4 flex items-center gap-2">
-            <Activity className='h-4 w-4' />
-            Recent Activity
-          </h3>
-          <div className="space-y-3">
-            {auditData?.map((entry: any) => {
-              // Pick icon based on entity type
-              const iconMap: Record<string, any> = {
-                Quote: FileText,
-                Subscription: DollarSign,
-                Customer: Users,
-              };
-              const actionColorMap: Record<string, string> = {
-                CREATE: 'text-green-600',
-                UPDATE: 'text-blue-600',
-                EMAIL_SENT: 'text-purple-600',
-                DELETE: 'text-red-600',
-              };
-              const Icon = iconMap[entry.entityType] ?? BarChart3;
-              const actor = entry.performedBy?.name ?? 'System';
-              const actionLabel =
-                entry.action === 'EMAIL_SENT'
-                  ? 'sent an email for'
-                  : entry.action === 'CREATE'
-                    ? 'created a new'
-                    : entry.action === 'UPDATE'
-                      ? 'updated'
-                      : entry.action.toLowerCase();
-              const detail =
-                entry.newValue?.quoteNumber
-                  ? ` (${entry.newValue.quoteNumber})`
-                  : entry.newValue?.totalAmount
-                    ? ` • $${entry.newValue.totalAmount}`
-                    : '';
 
-              const timeAgo = (() => {
-                const diff = Date.now() - new Date(entry.createdAt).getTime();
-                const mins = Math.floor(diff / 60000);
-                if (mins < 60) return `${mins} min ago`;
-                const hrs = Math.floor(mins / 60);
-                if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
-                return `${Math.floor(hrs / 24)} day(s) ago`;
-              })();
+        {auditData?.length > 0 && (
+          <div className="bg-white border border-[#044866]/10 rounded-xl p-5">
+            <h3 className="text-base text-[#044866] mb-4 flex items-center gap-2">
+              <Activity className='h-4 w-4' />
+              Recent Activity
+            </h3>
+            <div className="space-y-3">
+              {auditData?.map((entry: any) => {
+                // Pick icon based on entity type
+                const iconMap: Record<string, any> = {
+                  Quote: FileText,
+                  Subscription: DollarSign,
+                  Customer: Users,
+                };
+                const actionColorMap: Record<string, string> = {
+                  CREATE: 'text-green-600',
+                  UPDATE: 'text-blue-600',
+                  EMAIL_SENT: 'text-purple-600',
+                  DELETE: 'text-red-600',
+                };
+                const Icon = iconMap[entry.entityType] ?? BarChart3;
+                const actor = entry.performedBy?.name ?? 'System';
+                const actionLabel =
+                  entry.action === 'EMAIL_SENT'
+                    ? 'sent an email for'
+                    : entry.action === 'CREATE'
+                      ? 'created a new'
+                      : entry.action === 'UPDATE'
+                        ? 'updated'
+                        : entry.action.toLowerCase();
+                const detail =
+                  entry.newValue?.quoteNumber
+                    ? ` (${entry.newValue.quoteNumber})`
+                    : entry.newValue?.totalAmount
+                      ? ` • $${entry.newValue.totalAmount}`
+                      : '';
 
-              return (
-                <div
-                  key={entry.id}
-                  className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0"
-                >
-                  <div className="w-8 h-8 bg-[#044866]/5 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-4 h-4 text-[#044866]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-gray-700">
-                      <span className="font-medium text-[#044866]">{actor}</span>{' '}
-                      <span className={actionColorMap[entry.action] ?? 'text-gray-600'}>
-                        {actionLabel}
-                      </span>{' '}
-                      {entry.entityType}
-                      {detail}
+                const timeAgo = (() => {
+                  const diff = Date.now() - new Date(entry.createdAt).getTime();
+                  const mins = Math.floor(diff / 60000);
+                  if (mins < 60) return `${mins} min ago`;
+                  const hrs = Math.floor(mins / 60);
+                  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+                  return `${Math.floor(hrs / 24)} day(s) ago`;
+                })();
+
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0"
+                  >
+                    <div className="w-8 h-8 bg-[#044866]/5 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-4 h-4 text-[#044866]" />
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">{timeAgo}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium text-[#044866]">{actor}</span>{' '}
+                        <span className={actionColorMap[entry.action] ?? 'text-gray-600'}>
+                          {actionLabel}
+                        </span>{' '}
+                        {entry.entityType}
+                        {detail}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">{timeAgo}</div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div> <div className="bg-white border border-[#044866]/10 rounded-xl p-5">
-          <h3 className="text-base text-[#044866] mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Top Performing Agents
-          </h3>
-          <div className="space-y-3">
-            {agentAnalytics?.leaderboard
-              ?.slice(0, 4)
-              .sort((a: any, b: any) => b.revenue - a.revenue)
-              .map((item: any, idx: number) => (
-                <div key={item.agent.id} className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-gradient-to-br from-[#044866] to-[#0D5468] rounded-full flex items-center justify-center text-white text-xs">
-                    {idx + 1}
-                  </div>
+        )}
 
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-[#044866]">
-                      {item.agent.name}
+        {agentAnalytics?.leaderboard?.length > 0 && (
+          <div className="bg-white border border-[#044866]/10 rounded-xl p-5">
+            <h3 className="text-base text-[#044866] mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Top Performing Agents
+            </h3>
+            <div className="space-y-3">
+              {agentAnalytics?.leaderboard
+                ?.slice(0, 4)
+                .sort((a: any, b: any) => b.revenue - a.revenue)
+                .map((item: any, idx: number) => (
+                  <div key={item.agent.id} className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-gradient-to-br from-[#044866] to-[#0D5468] rounded-full flex items-center justify-center text-white text-xs">
+                      {idx + 1}
                     </div>
 
-                    <div className="text-xs text-gray-600">
-                      ${(item.revenue / 1000).toFixed(0)}k sales
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-[#044866]">
+                        {item.agent.name}
+                      </div>
+
+                      <div className="text-xs text-gray-600">
+                        ${(item.revenue / 1000).toFixed(0)}k sales
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                      {item.conversion_rate}%
                     </div>
                   </div>
+                ))}
+            </div>
 
-                  <div className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                    {item.conversion_rate}%
-                  </div>
-                </div>
-              ))}
           </div>
+        )}
 
-        </div>
       </div>
     </div>
   )

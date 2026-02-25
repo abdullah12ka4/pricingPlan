@@ -28,7 +28,7 @@ export default function PricingTiers() {
                 setselectedTier(null)
                 setshowModal(true)
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
+              className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
             >
               <Plus className="w-4 h-4" />
               Create New Tier

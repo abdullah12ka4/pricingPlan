@@ -16,13 +16,13 @@ interface Props {
 export default function Step8({ id, setexpiry, currentStep }: Props) {
     const { control, watch, reset, setValue } = useFormContext<any>();
 
-    const linkExpiry = watch('linkExpiry') ?? 7;
+    const linkExpiry = watch('linkExpiry') ?? 3;
 
     const [generatedLink, setgeneratedLink] = useState('')
     const [showLinkModal, setShowLinkModal] = useState(false)
     const [copiedLink, setCopiedLink] = useState(false)
 
-    const [generateLink] = useGenerateLinkMutation();
+    const [generateLink, { isLoading: generateLinkLoading }] = useGenerateLinkMutation();
 
 
 
@@ -50,7 +50,6 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
 
 
     const checkOutData = getQuotesOne?.data
-    console.log("checkoutData",checkOutData)
 
     const handleGenerateLink = async () => {
 
@@ -120,6 +119,8 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
             }
         }
     };
+
+    console.log(isLoading)
 
 
     return (
@@ -304,9 +305,10 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
                                     <button
                                         type="button"
                                         onClick={handleGenerateLink}
+                                        disabled={generateLinkLoading}
                                         className="px-8 py-4 bg-white text-[#044866] rounded-xl hover:bg-gray-50 transition-all shadow-lg text-base flex items-center gap-2 mx-auto"
                                     >
-                                        <Link2 className="w-5 h-5" />
+                                        {generateLinkLoading ? <Spinner /> : <Link2 className="w-5 h-5" />}
                                         Generate Payment Link
                                     </button>
                                 </div>
@@ -363,7 +365,7 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
                                                 className="w-full px-6 py-4 bg-[#044866] text-white rounded-xl hover:bg-[#0D5468] transition-all flex items-center justify-center gap-2"
                                             >
                                                 <Mail className="w-4 h-4" />
-                                                {isLoading ? 'Sending...' : ' Send via Email'}
+                                                {isLoading ? <Spinner /> : ' Send via Email'}
                                             </button>
                                         </div>
 

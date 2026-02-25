@@ -252,7 +252,7 @@ export function CustomerPortal({
 
             {/* ✅ Step6 is the sole owner of addOns/selAddons/unSelAddons */}
             {networkPack && addOnData && (
-              <Step6 data={addOnData} />
+              <Step6 data={addOnData}/>
             )}
 
             {specificQuotesData?.data && networkPack && (

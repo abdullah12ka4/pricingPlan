@@ -57,7 +57,7 @@ export default function AddOns() {
             setshowModel(true)
             setselectedAddOns(null)
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
+          className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#044866] to-[#0D5468] text-white rounded-lg hover:shadow-lg transition-all"
         >
           <Plus className="w-4 h-4" />
           Create Add-on
@@ -65,7 +65,7 @@ export default function AddOns() {
       </div>
       {showModel && <AddOnsForm setModal={setshowModel} addData={selectedAddOns} />}
       {!data || data.length < 1 && <div className='min-h-[60vh] flex items-center justify-center w-full'>
-        NO AddOns Found
+        No AddOns Found
       </div>}
       {/* Add-ons Grid */}
       <div className="grid grid-cols-2 gap-5">

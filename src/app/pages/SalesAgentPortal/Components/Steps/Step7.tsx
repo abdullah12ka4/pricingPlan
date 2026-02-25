@@ -8,17 +8,6 @@ export default function Step7() {
   // Get discount from RHF form state
   const discount = watch('discount');
   const checkoutSummary = watch('checkoutSummary' as any);
-  console.log(checkoutSummary)
-  const calculateDiscount = () => {
-    if (!checkoutSummary || discount.value === 0) return 0;
-    const baseTotal = checkoutSummary.totalOneTime + checkoutSummary.totalAnnual;
-    if (discount.type === 'percentage') {
-      return (baseTotal * discount.value) / 100;
-    } else {
-      return discount.value;
-    }
-  };
-  const discountAmount = calculateDiscount();
 
   // NOTE: these validation alerts should be triggered on submit / step change, not during render.
   // Don’t keep these `alert` checks in the component body in real code.

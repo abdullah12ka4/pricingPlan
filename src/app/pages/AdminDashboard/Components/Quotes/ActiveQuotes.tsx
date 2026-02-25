@@ -175,8 +175,8 @@ export default function ActiveQuotes() {
                 <th className="text-left px-5 py-3 text-xs text-[#044866]">Expires</th>
                 <th className="text-right px-5 py-3 text-xs text-[#044866]">Actions</th>
               </tr>
-            </thead>
-            <tbody>
+            </thead> 
+            <tbody>             
               {data?.data.quotes?.map((quote: any) => {
                 const daysLeft = Math.ceil(
                   (new Date(quote.valid_until).getTime() - Date.now()) /

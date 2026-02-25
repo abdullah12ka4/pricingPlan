@@ -30,8 +30,11 @@ export default function page() {
   const [checkoutData, setCheckoutData] = useState<CheckOutSummary | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<any[]>([]);
   const [unselAddon, setUnselAddon] = useState<any[]>([]);
+
+
   const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery();
-  console.log("AGENT", agent)
+
+
   const {
     data: subscriptionData, isLoading: subscriptionLoading
   } = useGetSubscriptionByOrgQuery(agent?.organizationId);
@@ -62,7 +65,6 @@ export default function page() {
 
   const isLoading = agentLoading || subscriptionLoading
   const error = agentError
-  console.log("Subscription", subscriptionData)
 
   if (currentView === 'customer') {
     return (
@@ -133,8 +135,13 @@ export default function page() {
     );
   }
 
-  if (agent?.role === "SUPER_ADMIN") {
+  if (agent?.role === "SUPER_ADMIN" || agent?.role === "ADMIN") {
     setCurrentView('admin')
+    return null;
+  }
+
+  if (agent?.role === "SALES_AGENT" || agent?.role === "SALES_MANAGER") {
+    setCurrentView('sales')
     return null;
   }
 
@@ -196,7 +203,7 @@ export default function page() {
             </Card>}
 
             {/* Sales Agent Portal Card */}
-            {agent?.role === 'SALES_AGENT' && <Card
+            {/* {agent?.role === 'SALES_AGENT' && <Card
               className="group relative border-[#F7A619]/20 bg-gradient-to-br from-[#F7A619] to-[#F7A619]/90 hover:shadow-2xl transition-all cursor-pointer overflow-hidden"
               onClick={() => navigateTo('sales')}
             >
@@ -236,7 +243,7 @@ export default function page() {
                   <ArrowRight className="w-4 h-4" />
                 </div>
               </CardContent>
-            </Card>}
+            </Card>} */}
 
             {/* Admin Dashboard Card */}
             {/* {agent?.role === 'SUPER_ADMIN' && <AdminCard currentView={setCurrentView} />} */}
