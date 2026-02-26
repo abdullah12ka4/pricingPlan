@@ -46,18 +46,18 @@ export const subscriptionApi = createApi({
       invalidatesTags: ["subscription"],
     }),
     upgradeSubscription: builder.mutation<any, any>({
-      query: ({id, body})=> ({
+      query: ({id, payload})=> ({
         url: `api/v1/api/subscriptions/${id}/upgrade`,
         method: `POST`,
-        body
+        body: payload
       }),
       invalidatesTags: ["subscription"],
     }),
     downgradeSubscription: builder.mutation<any, any>({
-      query: ({id, body})=> ({
+      query: ({id, payload})=> ({
         url: `api/v1/api/subscriptions/${id}/downgrade`,
         method: `POST`,
-        body
+        body: payload
       }),
       invalidatesTags: ["subscription"],
     })

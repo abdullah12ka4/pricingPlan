@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { FormProvider, useForm } from 'react-hook-form';
 import Organization from './Components/Organization';
@@ -54,20 +54,6 @@ export function CustomerPortal({
   const Pricing = usePricing();
   const [loading, setLoading] = useState(false);
 
-  /**
-   * ✅ memoExistingAddOns — passed to Step6 as existingAddOn prop.
-   * Step6 is the SOLE OWNER of the addOns form field.
-   * CustomerPortal NEVER calls reset() or setValue('addOns', ...).
-   * This prevents the reset() vs Step6 fight that was wiping selections.
-   */
-  const memoExistingAddOns = useMemo(() => {
-    if (!subscriptionData?.[0]?.addons) return [];
-    return subscriptionData[0].addons.map((addon: any) => ({
-      addonId: addon.addonId || addon.id,
-      quantity: addon.quantity,
-    }));
-  }, [subscriptionData]);
-
   const methods = useForm({
     mode: 'onChange',
     defaultValues: {
@@ -82,10 +68,55 @@ export function CustomerPortal({
     },
   });
 
-  // ✅ NO reset() call here — Step6 owns addOns/selAddons/unSelAddons
+  /**
+   * ─── EXISTING SUBSCRIPTION ADDONS ────────────────────────────────────────
+   * These are the BASELINE from the server. They NEVER change during the
+   * session — they represent what the user had BEFORE opening this page.
+   * We freeze them into a ref on first load so re-fetches cannot overwrite them.
+   */
+  const baselineAddonsRef = useRef<{ addonId: string; quantity: number }[] | null>(null);
+
+  const existingSubscriptionAddons = useMemo(() => {
+    if (!subscriptionData?.[0]?.addons) return [];
+    return subscriptionData[0].addons.map((addon: any) => ({
+      addonId: addon.addonId || addon.id,
+      quantity: addon.quantity,
+    }));
+  }, [subscriptionData]);
+
+  /**
+   * ─── PRELOAD GUARD ────────────────────────────────────────────────────────
+   * addonPreloadDone: set to true ONCE after existing addons are written into
+   * the form. Diffs (added/removed) are frozen at [] until this is true.
+   * Using a ref for the "did we fire" guard so re-renders don't reset it.
+   */
+  const preloadFiredRef = useRef(false);
+  const [addonPreloadDone, setAddonPreloadDone] = useState(false);
+
+  useEffect(() => {
+    // Wait until subscription query has resolved (loading = false)
+    if (subscriptionLoading) return;
+    // Only run once
+    if (preloadFiredRef.current) return;
+    preloadFiredRef.current = true;
+
+    if (existingSubscriptionAddons.length > 0) {
+      // Freeze the baseline — this ref is the ground truth for diffs
+      baselineAddonsRef.current = existingSubscriptionAddons;
+      methods.setValue('addOns', existingSubscriptionAddons, { shouldValidate: false });
+    } else {
+      // New customer — no baseline
+      baselineAddonsRef.current = [];
+    }
+
+    // Let the form state settle before diffs start
+    setTimeout(() => setAddonPreloadDone(true), 0);
+  // existingSubscriptionAddons intentionally excluded — we only want this to
+  // run once after subscriptionLoading flips to false
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscriptionLoading]);
 
   const { watch } = methods;
-  const organizationId = watch('organizationId');
   const organizationType = watch('organizationType');
   const plan = watch('plan');
   const tier = watch('tier');
@@ -112,9 +143,41 @@ export function CustomerPortal({
   }, [addOns, addOnData]);
 
   /**
-   * ✅ Stable serialized sentinel for selectedAddOns.
-   * Prevents previewPayload from recomputing on every render when
-   * selectedAddOns produces a new array reference but same content.
+   * ─── DIFF COMPUTATION ────────────────────────────────────────────────────
+   * Both diffs use baselineAddonsRef (frozen at load time) NOT the live
+   * subscriptionData — so re-fetches from updateQuotes never corrupt them.
+   *
+   * Guard: return [] until addonPreloadDone = true.
+   */
+  const currentAddonIdSet = useMemo(
+    () => new Set(addOns.map((a: any) => a.addonId)),
+    [addOns]
+  );
+
+  const baselineAddonIdSet = useMemo(() => {
+    if (!baselineAddonsRef.current) return new Set<string>();
+    return new Set(baselineAddonsRef.current.map((a) => a.addonId));
+  }, [addonPreloadDone]); // re-derive only after preload done
+
+  // Addons the user ADDED (not in baseline)
+  const addedAddonIds = useMemo(() => {
+    if (!addonPreloadDone) return [];
+    return addOns
+      .filter((a: any) => !baselineAddonIdSet.has(a.addonId))
+      .map((a: any) => a.addonId);
+  }, [addOns, baselineAddonIdSet, addonPreloadDone]);
+
+  // Addons the user REMOVED (were in baseline, no longer selected)
+  const removedAddonIds = useMemo(() => {
+    if (!addonPreloadDone) return [];
+    if (!baselineAddonsRef.current) return [];
+    return baselineAddonsRef.current
+      .filter((a) => !currentAddonIdSet.has(a.addonId))
+      .map((a) => a.addonId);
+  }, [currentAddonIdSet, addonPreloadDone]);
+
+  /**
+   * ─── QUOTE CREATION ──────────────────────────────────────────────────────
    */
   const selectedAddOnsJsonRef = useRef<string>('');
   const selectedAddOnsJson = JSON.stringify(
@@ -124,7 +187,6 @@ export function CustomerPortal({
     selectedAddOnsJsonRef.current = selectedAddOnsJson;
   }
 
-  // Build the quote payload — only recomputes when fields actually change
   const previewPayload = useMemo(() => {
     if (!organizationType || !tier || !networkPack || !selectedTier) return null;
 
@@ -153,10 +215,6 @@ export function CustomerPortal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationType, plan, tier, networkPack, selectedTier, selectedAddOnsJsonRef.current]);
 
-  /**
-   * ✅ Only fire createQuote when payload CONTENT actually changes.
-   * JSON comparison prevents firing on re-renders with same data.
-   */
   const prevPayloadRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -178,7 +236,6 @@ export function CustomerPortal({
         } else {
           await addQuotes(previewPayload).unwrap();
         }
-        setAddOns(selectedAddOns.map((a: any) => a.id));
       } catch (err) {
         console.error('Error creating/updating quote:', err);
       } finally {
@@ -188,6 +245,20 @@ export function CustomerPortal({
 
     createQuote();
   }, [previewPayload]);
+
+  /**
+   * ─── SYNC PARENT ─────────────────────────────────────────────────────────
+   * Only fire after preload is done — prevents stale diffs on mount.
+   */
+  useEffect(() => {
+    if (!addonPreloadDone) return;
+    setAddOns(addedAddonIds);
+  }, [addedAddonIds, addonPreloadDone]);
+
+  useEffect(() => {
+    if (!addonPreloadDone) return;
+    unselAddon(removedAddonIds);
+  }, [removedAddonIds, addonPreloadDone]);
 
   const handleCheckout = () => {
     if (!specificQuotesData) return null;
@@ -250,9 +321,11 @@ export function CustomerPortal({
               </div>
             )}
 
-            {/* ✅ Step6 is the sole owner of addOns/selAddons/unSelAddons */}
             {networkPack && addOnData && (
-              <Step6 data={addOnData}/>
+              <Step6
+                data={addOnData}
+                existingAddOn={baselineAddonsRef.current ?? []}
+              />
             )}
 
             {specificQuotesData?.data && networkPack && (

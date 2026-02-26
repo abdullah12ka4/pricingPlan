@@ -8,7 +8,7 @@ import { Badge } from '../components/ui/badge';
 import { GlobalNav } from '../components/GlobalNav';
 import { TrainingOrgPortal } from '../pages/TrainingOrganizationPortal/TrainingOrgPortal';
 import { AdminDashboard } from '../pages/AdminDashboard/AdminDashboard';
-import { PaymentPage } from '../pages/PaymentPage';
+import { PaymentPage } from '../pages/PaymentPage/PaymentPage';
 import { useGetUserQuery } from '@/Redux/services/user';
 import HeroSection from './Components/HeroSection';
 import AdminCard from './Components/AdminCard';
@@ -30,16 +30,10 @@ export default function page() {
   const [checkoutData, setCheckoutData] = useState<CheckOutSummary | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<any[]>([]);
   const [unselAddon, setUnselAddon] = useState<any[]>([]);
-
-
   const { data: agent, refetch: agentRefetch, isLoading: agentLoading, error: agentError } = useGetUserQuery();
-
-
   const {
     data: subscriptionData, isLoading: subscriptionLoading
   } = useGetSubscriptionByOrgQuery(agent?.organizationId);
-
-
 
   const handleProceedToPayment = async (summary: CheckOutSummary) => {
     console.log("Summary received in handleProceedToPayment:", summary);
@@ -47,13 +41,19 @@ export default function page() {
     setCurrentView('payment');
   };
 
-  const handlePaymentComplete = () => {
-    setCheckoutData(null);
-    setCurrentView('home');
-    toast.success('Payment completed successfully! 🎉', {
-      description: 'Your package has been activated.',
-    });
+const handlePaymentComplete = (type?: 'new' | 'upgrade' | 'downgrade') => {
+  setCheckoutData(null);
+  setCurrentView('home');
+
+  const messages = {
+    upgrade: { title: 'Plan upgraded successfully! ⬆️', desc: 'Your new plan is active immediately.' },
+    downgrade: { title: 'Plan updated successfully!', desc: 'Changes take effect at your next billing cycle.' },
+    new: { title: 'Payment completed successfully! 🎉', desc: 'Your package has been activated.' },
   };
+
+  const msg = messages[type ?? 'new'];
+  toast.success(msg.title, { description: msg.desc });
+};
 
   const navigateTo = (view: ViewType) => {
     setCurrentView(view);
@@ -114,7 +114,7 @@ export default function page() {
     return (
       <>
         <GlobalNav agent={agent} currentView={currentView} onNavigate={navigateTo} />
-        <TrainingOrgPortal org={agent?.organization} onBack={() => navigateTo('home')} />
+        <TrainingOrgPortal org={agent?.organization} subscription={subscriptionData[0]} onBack={() => navigateTo('home')} />
 
       </>
     );
@@ -144,7 +144,6 @@ export default function page() {
     setCurrentView('sales')
     return null;
   }
-
   
 
   return (
@@ -251,7 +250,7 @@ export default function page() {
 
         </div>
 
-        {agent?.organization && (
+        {agent?.organization && subscriptionData.length > 0 && (
           <Card
             onClick={() => navigateTo('training-org')}
             className="group mb-10 border-2 border-[#044866]/10 hover:border-[#044866]/30 hover:shadow-xl transition-all cursor-pointer overflow-hidden"

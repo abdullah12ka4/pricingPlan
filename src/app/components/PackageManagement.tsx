@@ -33,6 +33,7 @@ export function PackageManagement({
 
   const studentCapacityPercentage = (mockPackageInfo.annualLicense.currentStudents / mockPackageInfo.annualLicense.studentCapacity.max) * 100;
   const isNearCapacity = studentCapacityPercentage > 80;
+  // console.log("mockPackgage", mockPackageInfo)
 
   return (
     <motion.div

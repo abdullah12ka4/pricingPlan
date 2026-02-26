@@ -5,12 +5,15 @@ import { AlertCircle, CheckCircle, Clock, Users, Zap } from "lucide-react";
 import { Progress } from "@/app/components/ui/progress";
 
 
-export function SummaryCards({ mockPackageInfo, credit }: { mockPackageInfo: any , credit:boolean}) {
+export function SummaryCards({ mockPackageInfo, credit, invoices }: { mockPackageInfo: any , credit:boolean, invoices: any}) {
+    console.log("mockPackageInfo", mockPackageInfo)
+    console.log("INVOICES", invoices)
     const usagePercentage = (mockPackageInfo.usedCredits / mockPackageInfo.totalCredits) * 100;
-    const uniqueStudents = new Set(mockPackageInfo.studentIds).size;
-    const totalPaid = mockPackageInfo.paidAmount;
-    const totalPending = mockPackageInfo.pendingAmount;
-    const totalOverdue = mockPackageInfo.overdueAmount;
+    const uniqueStudents = "";
+    console.log("UNIV", uniqueStudents)
+    const totalPaid = invoices.filter((inv:any) => inv.status === 'paid').reduce((sum:any, inv:any) => sum + inv.amount, 0);
+    const totalPending = invoices.filter((inv:any) => inv.status === 'pending' || inv.status === 'sent').reduce((sum:any, inv:any) => sum + inv.amount, 0);
+    const totalOverdue = invoices.filter((inv:any) => inv.status === 'overdue').reduce((sum:any, inv:any) => sum + inv.amount, 0);
     return (
         <motion.div 
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3"
