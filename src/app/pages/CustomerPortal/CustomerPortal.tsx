@@ -27,6 +27,24 @@ interface CustomerPricingProps {
   unselAddon: (unselectedAddOns: any[]) => void;
 }
 
+/** Debounce helper — returns a stable debounced version of `fn`. */
+function useDebounceCallback<T extends (...args: any[]) => any>(fn: T, delay: number): T {
+  const fnRef = useRef(fn);
+  fnRef.current = fn; // always up-to-date without recreating the debounced wrapper
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  return useCallback(
+    (...args: Parameters<T>) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        fnRef.current(...args);
+      }, delay);
+    },
+    [delay]
+  ) as T;
+}
+
 export function CustomerPortal({
   onBack,
   onCheckout,
@@ -34,26 +52,29 @@ export function CustomerPortal({
   setAddOns,
   unselAddon,
 }: CustomerPricingProps) {
+  // ─── DATA FETCHING ────────────────────────────────────────────────────────
   const { data: networkCreditPacks, isLoading: networkLoading } = useGetNetworkQuery();
   const { data: addOnData, isLoading: addOnLoading } = useGetAddOnsQuery();
   const { data: quotesData, isLoading: quotesLoading } = useGetQuotesQuery({ agentId: agent?.id });
+
+  const firstQuoteId = quotesData?.data.quotes[0]?.id;
+
   const {
     data: specificQuotesData,
     refetch,
     isLoading: specificQuotesLoading,
-  } = useGetSpecificQuotesQuery(quotesData?.data.quotes[0]?.id, {
-    skip: !quotesData?.data.quotes[0]?.id,
-  });
-  const {
-    data: subscriptionData,
-    isLoading: subscriptionLoading,
-  } = useGetSubscriptionByOrgQuery(agent?.organizationId);
+  } = useGetSpecificQuotesQuery(firstQuoteId, { skip: !firstQuoteId });
+
+  const { data: subscriptionData, isLoading: subscriptionLoading } =
+    useGetSubscriptionByOrgQuery(agent?.organizationId);
 
   const [addQuotes] = useAddQuotesMutation();
   const [updateQuotes] = useUpdateQuotesMutation();
-  const Pricing = usePricing();
-  const [loading, setLoading] = useState(false);
 
+  const Pricing = usePricing();
+  const [quoteLoading, setQuoteLoading] = useState(false);
+
+  // ─── FORM ─────────────────────────────────────────────────────────────────
   const methods = useForm({
     mode: 'onChange',
     defaultValues: {
@@ -63,143 +84,105 @@ export function CustomerPortal({
       tier: '',
       networkPack: '',
       addOns: [] as any[],
-      selAddons: [] as any[],
-      unSelAddons: [] as any[],
     },
   });
 
-  /**
-   * ─── EXISTING SUBSCRIPTION ADDONS ────────────────────────────────────────
-   * These are the BASELINE from the server. They NEVER change during the
-   * session — they represent what the user had BEFORE opening this page.
-   * We freeze them into a ref on first load so re-fetches cannot overwrite them.
-   */
-  const baselineAddonsRef = useRef<{ addonId: string; quantity: number }[] | null>(null);
-
-  const existingSubscriptionAddons = useMemo(() => {
-    if (!subscriptionData?.[0]?.addons) return [];
-    return subscriptionData[0].addons.map((addon: any) => ({
-      addonId: addon.addonId || addon.id,
-      quantity: addon.quantity,
-    }));
-  }, [subscriptionData]);
-
-  /**
-   * ─── PRELOAD GUARD ────────────────────────────────────────────────────────
-   * addonPreloadDone: set to true ONCE after existing addons are written into
-   * the form. Diffs (added/removed) are frozen at [] until this is true.
-   * Using a ref for the "did we fire" guard so re-renders don't reset it.
-   */
-  const preloadFiredRef = useRef(false);
-  const [addonPreloadDone, setAddonPreloadDone] = useState(false);
-
-  useEffect(() => {
-    // Wait until subscription query has resolved (loading = false)
-    if (subscriptionLoading) return;
-    // Only run once
-    if (preloadFiredRef.current) return;
-    preloadFiredRef.current = true;
-
-    if (existingSubscriptionAddons.length > 0) {
-      // Freeze the baseline — this ref is the ground truth for diffs
-      baselineAddonsRef.current = existingSubscriptionAddons;
-      methods.setValue('addOns', existingSubscriptionAddons, { shouldValidate: false });
-    } else {
-      // New customer — no baseline
-      baselineAddonsRef.current = [];
-    }
-
-    // Let the form state settle before diffs start
-    setTimeout(() => setAddonPreloadDone(true), 0);
-  // existingSubscriptionAddons intentionally excluded — we only want this to
-  // run once after subscriptionLoading flips to false
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscriptionLoading]);
-
-  const { watch } = methods;
+  const { watch, setValue } = methods;
   const organizationType = watch('organizationType');
   const plan = watch('plan');
   const tier = watch('tier');
   const networkPack = watch('networkPack');
   const addOns = watch('addOns');
 
+  // ─── BASELINE (frozen on first load) ─────────────────────────────────────
+  /**
+   * baselineAddonsRef: the server state BEFORE the user touched anything.
+   * Never updated after initial load — diffs are always against this snapshot.
+   */
+  const baselineAddonsRef = useRef<{ addonId: string; quantity: number }[] | null>(null);
+  const preloadFiredRef = useRef(false);
+  const [addonPreloadDone, setAddonPreloadDone] = useState(false);
+
+  useEffect(() => {
+    if (subscriptionLoading || preloadFiredRef.current) return;
+    preloadFiredRef.current = true;
+
+    const baseline =
+      subscriptionData?.[0]?.addons?.map((addon: any) => ({
+        addonId: addon.addonId ?? addon.id,
+        quantity: addon.quantity,
+      })) ?? [];
+
+    baselineAddonsRef.current = baseline;
+
+    if (baseline.length > 0) {
+      setValue('addOns', baseline, { shouldValidate: false });
+    }
+
+    // Let form state settle before diffs start
+    setTimeout(() => setAddonPreloadDone(true), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscriptionLoading]);
+
+  // ─── SELECTED TIER ────────────────────────────────────────────────────────
   const selectedTier = useMemo<any>(() => {
     if (!tier || !organizationType) return null;
-    return Pricing.find(
-      (p: any) => p.id === tier && p.organisationType === organizationType
-    );
+    return Pricing.find((p: any) => p.id === tier && p.organisationType === organizationType);
   }, [tier, organizationType, Pricing]);
 
-  // Resolve full addon objects from the addOns form array
+  // ─── FULL ADDON OBJECTS ───────────────────────────────────────────────────
   const selectedAddOns = useMemo(() => {
     if (!addOns?.length || !addOnData) return [];
     return addOns
       .map((qty: any) => {
         const addon = addOnData.find((a: any) => a.id === qty.addonId);
-        if (!addon) return null;
-        return { ...addon, quantity: qty.quantity };
+        return addon ? { ...addon, quantity: qty.quantity } : null;
       })
       .filter(Boolean);
   }, [addOns, addOnData]);
 
-  /**
-   * ─── DIFF COMPUTATION ────────────────────────────────────────────────────
-   * Both diffs use baselineAddonsRef (frozen at load time) NOT the live
-   * subscriptionData — so re-fetches from updateQuotes never corrupt them.
-   *
-   * Guard: return [] until addonPreloadDone = true.
-   */
-  const currentAddonIdSet = useMemo(
-    () => new Set(addOns.map((a: any) => a.addonId)),
-    [addOns]
-  );
+  // ─── DIFFS (added / removed vs baseline) ─────────────────────────────────
+  const currentAddonIdSet = useMemo(() => new Set(addOns.map((a: any) => a.addonId)), [addOns]);
 
   const baselineAddonIdSet = useMemo(() => {
     if (!baselineAddonsRef.current) return new Set<string>();
     return new Set(baselineAddonsRef.current.map((a) => a.addonId));
-  }, [addonPreloadDone]); // re-derive only after preload done
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addonPreloadDone]);
 
-  // Addons the user ADDED (not in baseline)
   const addedAddonIds = useMemo(() => {
     if (!addonPreloadDone) return [];
-    return addOns
-      .filter((a: any) => !baselineAddonIdSet.has(a.addonId))
-      .map((a: any) => a.addonId);
+    return addOns.filter((a: any) => !baselineAddonIdSet.has(a.addonId)).map((a: any) => a.addonId);
   }, [addOns, baselineAddonIdSet, addonPreloadDone]);
 
-  // Addons the user REMOVED (were in baseline, no longer selected)
   const removedAddonIds = useMemo(() => {
-    if (!addonPreloadDone) return [];
-    if (!baselineAddonsRef.current) return [];
+    if (!addonPreloadDone || !baselineAddonsRef.current) return [];
     return baselineAddonsRef.current
       .filter((a) => !currentAddonIdSet.has(a.addonId))
       .map((a) => a.addonId);
   }, [currentAddonIdSet, addonPreloadDone]);
 
+  // ─── QUOTE UPSERT (debounced) ─────────────────────────────────────────────
   /**
-   * ─── QUOTE CREATION ──────────────────────────────────────────────────────
+   * Build the payload inside the callback so we never form stale closures.
+   * Debounced at 600 ms — selections won't fire a network request until the
+   * user pauses, eliminating the "heavy / irritating" rapid-fire requests.
    */
-  const selectedAddOnsJsonRef = useRef<string>('');
-  const selectedAddOnsJson = JSON.stringify(
-    selectedAddOns.map((a: any) => ({ id: a.id, quantity: a.quantity }))
-  );
-  if (selectedAddOnsJson !== selectedAddOnsJsonRef.current) {
-    selectedAddOnsJsonRef.current = selectedAddOnsJson;
-  }
+  const prevPayloadRef = useRef<string | null>(null);
+  const specificQuotesDataRef = useRef(specificQuotesData);
+  specificQuotesDataRef.current = specificQuotesData;
 
-  const previewPayload = useMemo(() => {
-    if (!organizationType || !tier || !networkPack || !selectedTier) return null;
+  const upsertQuote = useCallback(async () => {
+    if (!organizationType || !tier || !networkPack || !selectedTier) return;
 
-    const addonItems = JSON.parse(selectedAddOnsJsonRef.current || '[]').map(
-      (a: any) => ({ addonId: a.id, quantity: a.quantity })
-    );
+    const addonItems = selectedAddOns.map((a: any) => ({ addonId: a.id, quantity: a.quantity }));
 
-    return {
+    const payload = {
       clientInfo: {
-        name: agent?.name || '',
-        email: agent?.email || '',
-        phone: agent?.phoneNumber || '',
-        organization: agent?.organization?.name || '',
+        name: agent?.name ?? '',
+        email: agent?.email ?? '',
+        phone: agent?.phoneNumber ?? '',
+        organization: agent?.organization?.name ?? '',
       },
       organizationType,
       planType: plan,
@@ -208,78 +191,84 @@ export function CustomerPortal({
       networkPackageId: networkPack,
       studentCount: selectedTier.maxStudents,
       addonItems,
-      validUntil: new Date(
-        new Date().setDate(new Date().getDate() + 7)
-      ).toISOString(),
+      validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationType, plan, tier, networkPack, selectedTier, selectedAddOnsJsonRef.current]);
 
-  const prevPayloadRef = useRef<string | null>(null);
+    const serialized = JSON.stringify(payload);
+    if (serialized === prevPayloadRef.current) return; // nothing changed
+    prevPayloadRef.current = serialized;
+    console.log("QUOTE PAYLOAD", payload)
+
+    try {
+      setQuoteLoading(true);
+      const existing = specificQuotesDataRef.current?.data;
+      if (existing) {
+       const res =  await updateQuotes({ id: existing.id, body: payload }).unwrap();
+       console.log("UPDATE QUOTES", res)
+       await refetch();
+      } else {
+       const res = await addQuotes(payload).unwrap();
+       console.log("ADD QUOTE", res)
+      }
+    } catch (err) {
+      console.error('Error creating/updating quote:', err);
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, [
+    organizationType,
+    plan,
+    tier,
+    networkPack,
+    selectedTier,
+    selectedAddOns,
+    agent,
+    addQuotes,
+    updateQuotes,
+    refetch,
+  ]);
+
+  const debouncedUpsertQuote = useDebounceCallback(upsertQuote, 600);
 
   useEffect(() => {
-    if (!previewPayload) return;
+    debouncedUpsertQuote();
+  }, [debouncedUpsertQuote, organizationType, plan, tier, networkPack, selectedAddOns]);
 
-    const serialized = JSON.stringify(previewPayload);
-    if (serialized === prevPayloadRef.current) return;
-    prevPayloadRef.current = serialized;
-
-    const createQuote = async () => {
-      try {
-        setLoading(true);
-        if (specificQuotesData?.data) {
-          await updateQuotes({
-            id: specificQuotesData.data.id,
-            body: previewPayload,
-          }).unwrap();
-          await refetch();
-        } else {
-          await addQuotes(previewPayload).unwrap();
-        }
-      } catch (err) {
-        console.error('Error creating/updating quote:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    createQuote();
-  }, [previewPayload]);
-
-  /**
-   * ─── SYNC PARENT ─────────────────────────────────────────────────────────
-   * Only fire after preload is done — prevents stale diffs on mount.
-   */
+  // ─── SYNC PARENT ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!addonPreloadDone) return;
     setAddOns(addedAddonIds);
-  }, [addedAddonIds, addonPreloadDone]);
+  }, [addedAddonIds, addonPreloadDone, setAddOns]);
 
   useEffect(() => {
     if (!addonPreloadDone) return;
     unselAddon(removedAddonIds);
-  }, [removedAddonIds, addonPreloadDone]);
+  }, [removedAddonIds, addonPreloadDone, unselAddon]);
 
-  const handleCheckout = () => {
-    if (!specificQuotesData) return null;
-    onCheckout(specificQuotesData?.data);
-  };
+  // ─── CHECKOUT ─────────────────────────────────────────────────────────────
+  const handleCheckout = useCallback(() => {
+    if (!specificQuotesData?.data) return;
+    onCheckout(specificQuotesData.data);
+  }, [specificQuotesData, onCheckout]);
 
+  // ─── LOADING GATE ─────────────────────────────────────────────────────────
   const isLoading =
-    loading ||
+    quoteLoading ||
     networkLoading ||
     addOnLoading ||
     quotesLoading ||
     specificQuotesLoading ||
     subscriptionLoading;
 
-  if (isLoading)
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Spinner />
       </div>
     );
+  }
 
+  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5">
       <div className="bg-white/80 backdrop-blur-sm border-b border-[#044866]/10 sticky top-0 z-40">

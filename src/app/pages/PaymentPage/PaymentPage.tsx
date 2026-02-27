@@ -14,16 +14,8 @@ interface PaymentPageProps {
   onBack: () => void;
   onComplete: () => void;
   agent: any;
-  agentRefetch: () => void;
-  /**
-   * selAddon — addon IDs that are NEWLY ADDED (not in existing subscription).
-   * Used as additional_addon_ids in upgradeSubscription payload.
-   */
-  selAddon: any[];
-  /**
-   * unselAddon — addon IDs that were REMOVED from the existing subscription.
-   * Used as remove_addon_ids in downgradeSubscription payload.
-   */
+  agentRefetch: () => void; 
+  selAddon: any[]; 
   unselAddon?: any[];
 }
 
@@ -753,4 +745,4 @@ export function PaymentPage(props: PaymentPageProps) {
       <PaymentForm {...props} />
     </Elements>
   );
-}
+}      

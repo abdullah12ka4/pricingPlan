@@ -3,7 +3,7 @@ import Cookies from "js-cookie";
 
 
 export const header = fetchBaseQuery({ 
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://192.168.1.39:3000",
+    baseUrl: process.env.NEXT_PUBLIC_API_URL,
     credentials: "include",
     prepareHeaders: (headers) => {
       const token = Cookies.get("accessToken");
