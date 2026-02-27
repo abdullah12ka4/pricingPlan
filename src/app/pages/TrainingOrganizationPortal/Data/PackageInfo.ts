@@ -67,6 +67,11 @@ export const buildPackageInfo = (
         overages: null,
 
         // ⚠️ Not available → backend needed
-        complianceStatus: null,
+        complianceStatus: {
+            certifications:[
+                "RTO Accredited","Privacy Compliant","Industry Verified"
+            ],
+            lastAudit: subscription?.data?.start_date
+        },
     };
 };

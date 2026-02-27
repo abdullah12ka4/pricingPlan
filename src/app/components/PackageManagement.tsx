@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Settings, ChevronDown, Building, Award, Sparkles, Users, Zap, Package, 
+import {
+  Settings, ChevronDown, Building, Award, Sparkles, Users, Zap, Package,
   Info, CheckCircle, Clock, Calendar, TrendingUp, AlertCircle, ExternalLink,
   FileText, History, CreditCard, ShieldCheck, ChevronRight, DollarSign, User
 } from 'lucide-react';
@@ -10,6 +10,9 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Progress } from './ui/progress';
+import { useGetNetworkQuery } from '@/Redux/services/NetworkModal';
+import { Spinner } from './ui/spinner';
+import { CardNumberElementComponent } from '@stripe/react-stripe-js';
 
 interface PackageManagementProps {
   mockPackageInfo: any;
@@ -35,6 +38,12 @@ export function PackageManagement({
   const isNearCapacity = studentCapacityPercentage > 80;
   // console.log("mockPackgage", mockPackageInfo)
 
+  const { data: networkData, isLoading: networkLoading } = useGetNetworkQuery()
+  if (networkLoading) {
+    return <div className="flex h-screen items-center justify-center"><Spinner /></div>;
+  }
+
+  console.log(networkData)
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -81,22 +90,22 @@ export function PackageManagement({
                 {/* Tab Navigation */}
                 <Tabs value={activePackageTab} onValueChange={(value: any) => setActivePackageTab(value)} className="w-full">
                   <TabsList className="bg-slate-100/80 p-0.5 h-auto w-full grid grid-cols-3 mb-3">
-                    <TabsTrigger 
-                      value="overview" 
+                    <TabsTrigger
+                      value="overview"
                       className="data-[state=active]:bg-[#044866] data-[state=active]:text-white px-2 py-1.5 rounded-md font-medium transition-all text-xs"
                     >
                       <Package className="w-3 h-3 mr-1" />
                       Overview
                     </TabsTrigger>
-                    <TabsTrigger 
-                      value="addons" 
+                    <TabsTrigger
+                      value="addons"
                       className="data-[state=active]:bg-[#044866] data-[state=active]:text-white px-2 py-1.5 rounded-md font-medium transition-all text-xs"
                     >
                       <Sparkles className="w-3 h-3 mr-1" />
                       Add-ons
                     </TabsTrigger>
-                    <TabsTrigger 
-                      value="history" 
+                    <TabsTrigger
+                      value="history"
                       className="data-[state=active]:bg-[#044866] data-[state=active]:text-white px-2 py-1.5 rounded-md font-medium transition-all text-xs"
                     >
                       <History className="w-3 h-3 mr-1" />
@@ -119,7 +128,7 @@ export function PackageManagement({
                             <p className="text-[9px] text-slate-600">{mockPackageInfo.annualLicense.type} Tier</p>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-1.5 mb-2">
                           <div className="flex items-center justify-between text-[10px]">
                             <span className="text-slate-600">License Period</span>
@@ -177,7 +186,7 @@ export function PackageManagement({
                             <p className="text-[9px] text-slate-600">{mockPackageInfo.subscription.contractLength} contract</p>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-1.5 mb-2">
                           <div className="flex items-center justify-between text-[10px]">
                             <span className="text-slate-600">Contract Start</span>
@@ -205,9 +214,9 @@ export function PackageManagement({
                           </div>
                         </div>
 
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="w-full text-[10px] h-6 mt-1"
                         >
                           Manage Subscription
@@ -233,7 +242,7 @@ export function PackageManagement({
                             Verified
                           </Badge>
                         </div>
-                        
+
                         {/* Compliance Status */}
                         <div className="mt-2 pt-2 border-t border-slate-100">
                           <div className="flex items-center gap-1 mb-1">
@@ -288,9 +297,9 @@ export function PackageManagement({
                           </div>
                         </div>
 
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="w-full text-[10px] h-6 mt-2 border-[#044866]/20 text-[#044866] hover:bg-[#044866]/5"
                           onClick={() => setShowTierExpiryDialog(true)}
                         >
@@ -300,7 +309,7 @@ export function PackageManagement({
                     </div>
 
                     {/* Overage Billing Summary */}
-                    {mockPackageInfo.overages.totalYTD.credits > 0 && (
+                    {/* {mockPackageInfo.overages.totalYTD.credits > 0 && (
                       <div className="bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-lg border border-amber-200/60 p-2.5">
                         <div className="flex items-start gap-2">
                           <div className="w-6 h-6 bg-amber-100 rounded-md flex items-center justify-center flex-shrink-0">
@@ -339,7 +348,7 @@ export function PackageManagement({
                           </div>
                         </div>
                       </div>
-                    )}
+                    )} */}
 
                     {/* Network Credit Packages */}
                     <div className="bg-white rounded-lg border border-slate-200 p-2.5">
@@ -352,83 +361,35 @@ export function PackageManagement({
                           Quarterly Billing
                         </Badge>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {/* Starter Package */}
-                        <div className="relative p-2 rounded-lg border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white hover:border-[#044866]/40 transition-all group">
-                          <div className="text-center mb-1.5">
-                            <p className="text-xs font-semibold text-slate-900">Starter</p>
-                            <p className="text-[10px] text-slate-600">Small RTOs (1-100 students)</p>
-                          </div>
-                          <div className="text-center mb-1.5">
-                            <p className="text-xl font-bold text-[#044866]">75</p>
-                            <p className="text-[10px] text-slate-600">credits/quarter</p>
-                          </div>
-                          <div className="text-center mb-1.5">
-                            <p className="text-sm font-semibold text-slate-900">$1,500</p>
-                            <p className="text-[9px] text-slate-600">$20 per credit</p>
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full text-[10px] h-6 group-hover:border-[#044866] group-hover:text-[#044866]"
-                          >
-                            Select Package
-                          </Button>
-                        </div>
 
-                        {/* Growth Package - Current */}
-                        <div className="relative p-2 rounded-lg border-2 border-[#044866] bg-gradient-to-br from-[#044866]/10 via-white to-[#F7A619]/10 shadow-md">
-                          <Badge className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-[#044866] text-white text-[9px] px-1.5 py-0.5">
-                            Current
-                          </Badge>
-                          <div className="text-center mb-1.5 mt-1">
-                            <p className="text-xs font-semibold text-[#044866]">Growth</p>
-                            <p className="text-[10px] text-slate-600">Medium RTOs (101-500 students)</p>
+                        {networkData.map((network: any, index: number) => (
+                          <div key={index} className="relative p-2 rounded-lg border-2 border-slate-200 bg-gradient-to-br from-purple-50/50 to-white hover:border-purple-300 transition-all group">
+                            {network?.isBestValue && <Badge className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-[9px] px-1.5 py-0.5">
+                              Best Value
+                            </Badge>}
+                            <div className="text-center mb-1.5 mt-1">
+                              <p className={`text-xs font-semibold ${index === 0 ? 'text-black-700': index === 1 ? 'text-blue-900':'text-purple-900'} `}>{network?.name}</p>
+                              <p className="text-[10px] text-slate-600">{network?.description}</p>
+                            </div>
+                            <div className="text-center mb-1.5">
+                              <p className={`text-xl font-bold  ${index === 0 ? 'text-black-700': index === 1 ? 'text-blue-900':'text-purple-900'}`}>{network?.credits}</p>
+                              <p className="text-[10px] text-slate-600">credits/quarter</p>
+                            </div>
+                            <div className="text-center mb-1.5">
+                              <p className="text-sm font-semibold text-slate-900">${network?.totalPrice}</p>
+                              <p className={`text-[9px] ${network?.savingsPercent ? "text-emerald-600" : "text-slate-600"}`}>${network?.pricePerCredit} per credit {network?.savingsPercent}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-[10px] h-6 border-purple-300 text-purple-700 hover:bg-purple-50 group-hover:border-purple-400"
+                            >
+                              Upgrade Now
+                            </Button>
                           </div>
-                          <div className="text-center mb-1.5">
-                            <p className="text-xl font-bold text-[#044866]">100</p>
-                            <p className="text-[10px] text-slate-600">credits/quarter</p>
-                          </div>
-                          <div className="text-center mb-1.5">
-                            <p className="text-sm font-semibold text-slate-900">$1,800</p>
-                            <p className="text-[9px] text-emerald-600 font-medium">$18 per credit (Save 10%)</p>
-                          </div>
-                          <Button 
-                            variant="default"
-                            size="sm" 
-                            className="w-full text-[10px] h-6 bg-[#044866] hover:bg-[#0D5468]"
-                            disabled
-                          >
-                            Current Package
-                          </Button>
-                        </div>
-
-                        {/* Enterprise Package */}
-                        <div className="relative p-2 rounded-lg border-2 border-slate-200 bg-gradient-to-br from-purple-50/50 to-white hover:border-purple-300 transition-all group">
-                          <Badge className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-[9px] px-1.5 py-0.5">
-                            Best Value
-                          </Badge>
-                          <div className="text-center mb-1.5 mt-1">
-                            <p className="text-xs font-semibold text-purple-900">Enterprise</p>
-                            <p className="text-[10px] text-slate-600">Large RTOs (500+ students)</p>
-                          </div>
-                          <div className="text-center mb-1.5">
-                            <p className="text-xl font-bold text-purple-700">200</p>
-                            <p className="text-[10px] text-slate-600">credits/quarter</p>
-                          </div>
-                          <div className="text-center mb-1.5">
-                            <p className="text-sm font-semibold text-slate-900">$3,200</p>
-                            <p className="text-[9px] text-emerald-600 font-medium">$16 per credit (Save 20%)</p>
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full text-[10px] h-6 border-purple-300 text-purple-700 hover:bg-purple-50 group-hover:border-purple-400"
-                          >
-                            Upgrade Now
-                          </Button>
-                        </div>
+                        ))}
                       </div>
 
                       <div className="mt-2 p-2 bg-blue-50/50 rounded-md border border-blue-200/60">
@@ -453,7 +414,7 @@ export function PackageManagement({
                           {Object.values(selectedAddOns).filter((a: any) => a.enabled).length} Active
                         </Badge>
                       </div>
-                      
+
                       <div className="space-y-2">
                         {/* AI Calls Add-on */}
                         <div className="flex items-start gap-2 p-2 rounded-md border border-slate-200 bg-gradient-to-r from-blue-50/50 to-white">
@@ -478,9 +439,9 @@ export function PackageManagement({
                               </div>
                             </div>
                           </div>
-                          <Button 
+                          <Button
                             variant={selectedAddOns.aiCalls.enabled ? "outline" : "default"}
-                            size="sm" 
+                            size="sm"
                             className={`text-[10px] h-6 px-2 ${selectedAddOns.aiCalls.enabled ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-[#044866] hover:bg-[#0D5468] text-white'}`}
                             onClick={() => setSelectedAddOns({
                               ...selectedAddOns,
@@ -514,9 +475,9 @@ export function PackageManagement({
                               </div>
                             </div>
                           </div>
-                          <Button 
+                          <Button
                             variant={selectedAddOns.adminSupport.enabled ? "outline" : "default"}
-                            size="sm" 
+                            size="sm"
                             className={`text-[10px] h-6 px-2 ${selectedAddOns.adminSupport.enabled ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-[#044866] hover:bg-[#0D5468] text-white'}`}
                             onClick={() => setSelectedAddOns({
                               ...selectedAddOns,
@@ -550,9 +511,9 @@ export function PackageManagement({
                               </div>
                             </div>
                           </div>
-                          <Button 
+                          <Button
                             variant="default"
-                            size="sm" 
+                            size="sm"
                             className="text-[10px] h-6 px-2 bg-gradient-to-r from-[#F7A619] to-orange-500 hover:from-[#F7A619]/90 hover:to-orange-500/90 text-white"
                             onClick={() => setShowCreditRefillDialog(true)}
                           >
