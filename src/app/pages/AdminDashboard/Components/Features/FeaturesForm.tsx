@@ -43,7 +43,7 @@ export default function FeaturesForm({ modal, features }: { modal: (value: boole
                 }
             }
         } catch (error) {
-            console.error(error);
+            console.log(error);
             toast.error("Failed to update feature");
         }
     };

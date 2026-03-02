@@ -136,3 +136,30 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
 }
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background:  rgba(214, 49, 49, 0.603);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(214, 49, 49, 0.603);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(214, 49, 49, 0.603);
+}
+
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #044866 #f5f7fa;
+}

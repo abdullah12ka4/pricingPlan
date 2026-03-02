@@ -40,7 +40,7 @@ export default function AddOns() {
         toast.success('Successfully Deleted AddOn')
       }
     } catch (error) {
-      console.error("Error deleting AddOn:", error);
+      console.log("Error deleting AddOn:", error);
     }
 
   }
@@ -49,7 +49,7 @@ export default function AddOns() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl text-[#044866] mb-1">Add-ons Management</h2>
+          <h2 className="text-2xl text-[#044866] mb-1">Add-ons Management</h2>
           <p className="text-sm text-gray-600">Manage additional features and services</p>
         </div>
         <button

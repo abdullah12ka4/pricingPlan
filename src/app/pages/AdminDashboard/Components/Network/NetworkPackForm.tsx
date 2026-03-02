@@ -36,7 +36,7 @@ export default function NetworkPackForm({ modal, selectedNetwork }: { modal: (va
             }
                 
         } catch (error) {
-            console.error("Add Network Error:", error);            
+            console.log("Add Network Error:", error);            
         }
 
     }

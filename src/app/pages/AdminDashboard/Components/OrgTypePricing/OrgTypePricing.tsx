@@ -87,7 +87,7 @@ const processedData = Object.values(
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl text-[#044866] mb-1">Organization Type Pricing</h2>
+                    <h2 className="text-2xl text-[#044866] mb-1">Organization Type Pricing</h2>
                     <p className="text-sm text-gray-600">Manage base pricing for different organization types shown on the customer portal</p>
                 </div>
             </div>

@@ -495,46 +495,49 @@ export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5 flex">
+    <div className="max-h-[92vh] bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5 flex overflow-hidden">
       {/* Sidebar Navigation */}
-      {renderNavigation()}
+      <div className='max-h-[88vh]'>
+  {renderNavigation()}
+      </div>
+    
 
       {/* Main Content */}
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-8 max-h-screen overflow-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h1 className="text-2xl text-[#044866] mb-1">
                 {currentView === 'dashboard' && 'Dashboard Overview'}
-                {currentView === 'org-pricing' && 'Organization Type Pricing'}
+                {/* {currentView === 'org-pricing' && 'Organization Type Pricing'}
                 {currentView === 'pricing-tiers' && 'Pricing Tiers'}
                 {currentView === 'add-ons' && 'Add-ons'}
                 {currentView === 'network-packs' && 'Network Packs'}
                 {currentView === 'features' && 'Features'}
                 {currentView === 'sales-agents' && 'Sales Agents'}
-                {currentView === 'active-quotes' && 'Active Quotes'}
+                {currentView === 'active-quotes' && 'Active Quotes'} */}
                 {/* {currentView === 'analytics' && 'Analytics'}
                 {currentView === 'settings' && 'Settings'} */}
               </h1>
-              <p className="text-sm text-gray-600">
+              {/* <p className="text-sm text-gray-600">
                 {new Date().toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'
                 })}
-              </p>
+              </p> */}
             </div>
-            <div className="flex items-center gap-3">
-              {/* <button className="relative p-2 hover:bg-white rounded-lg transition-colors">
+            {/* <div className="flex items-center gap-3">
+              <button className="relative p-2 hover:bg-white rounded-lg transition-colors">
                 <Bell className="w-5 h-5 text-gray-600" />
                 {dashboardStats.pendingApprovals > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#F7A619] text-white text-xs rounded-full flex items-center justify-center">
                     {dashboardStats.pendingApprovals}
                   </span>
                 )}
-              </button> */}
+              </button>
               <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-[#044866]/10">
                 <div className="w-8 h-8 bg-gradient-to-br from-[#044866] to-[#0D5468] rounded-full flex items-center justify-center text-white text-xs">
                   AD
@@ -544,7 +547,7 @@ export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
                   <div className="text-xs text-gray-500">{data?.name}</div>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
 

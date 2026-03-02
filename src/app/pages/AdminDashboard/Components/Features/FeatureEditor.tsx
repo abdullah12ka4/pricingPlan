@@ -65,14 +65,14 @@ export function FeatureEditor() {
       setEditingFeatures(prev => prev.filter(f => f.id !== id));
       toast.success("Feature deleted successfully");
     } catch (err) {
-      console.error(err);
+      console.log(err);
       toast.error("Failed to delete feature");
     }
   };
 
   return (
     <div className="space-y-5">
-      <h2 className="text-xl text-[#044866]">Feature Matrix</h2>
+      <h2 className="text-2xl text-[#044866]">Feature Matrix</h2>
 
       {showModal && <FeaturesForm modal={setShowModal} features={currentFeature} />}
 

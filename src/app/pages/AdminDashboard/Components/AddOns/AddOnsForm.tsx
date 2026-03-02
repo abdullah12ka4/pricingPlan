@@ -6,7 +6,7 @@ import { addons } from "../../Types/AdminType";
 
 export function AddOnsForm({ setModal , addData}: { setModal: (show: boolean) => void , addData: addons | null}) {
   const [ addOns, { isLoading: addLoading } ] =  useAddOnsMutation()
-  const [editEddOns, { isLoading: editLoading } ] = useEditAddOnsMutation();
+  const [editAddOns, { isLoading: editLoading } ] = useEditAddOnsMutation();
 
 
   const isLoading = addLoading || editLoading;
@@ -24,7 +24,7 @@ export function AddOnsForm({ setModal , addData}: { setModal: (show: boolean) =>
     }
     try {
       if(addData?.id){
-        const res = await editEddOns({id: addData.id, Addpayload: processedData}).unwrap() 
+        const res = await editAddOns({id: addData.id, Addpayload: processedData}).unwrap() 
         if(res?.id){
           setModal(false)
           toast.success('Successfully Edited Add Ons') 
@@ -40,7 +40,7 @@ export function AddOnsForm({ setModal , addData}: { setModal: (show: boolean) =>
       }  
       }
     } catch (error) {
-      console.error("Error submitting pricing tier:", error);
+      console.log("Error submitting pricing tier:", error);
     }
   }
   return (    

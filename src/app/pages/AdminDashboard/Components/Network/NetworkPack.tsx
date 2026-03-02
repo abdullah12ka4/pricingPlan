@@ -40,7 +40,7 @@ export default function NetworkPack() {
       }
     } catch (error) {
       toast.error('Failed to delete network package.');
-      console.error("Delete Error:", error);
+      console.log("Delete Error:", error);
     }
   }
   const handleEdit = async (pack: NetworkType) => {
@@ -53,7 +53,7 @@ export default function NetworkPack() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl text-[#044866] mb-1">Network Credit Packages</h2>
+          <h2 className="text-2xl text-[#044866] mb-1">Network Credit Packages</h2>
           <p className="text-sm text-gray-600">Manage quarterly WPO credit packages</p>
         </div>
         <button

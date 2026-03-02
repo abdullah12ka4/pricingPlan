@@ -90,7 +90,7 @@ export default function PricingTableFilters({ setModal, editTier }: { setModal: 
         }
       }
     } catch (error) {
-      console.error('Delete failed', error);
+      console.log('Delete failed', error);
     }
   }
   const handleEdit = async (tier: TABLETYPE) => {

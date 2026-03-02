@@ -56,7 +56,7 @@ export function PricingTiersForm({ setShowCreateModal, tier }: { setShowCreateMo
         }
       }
     } catch (err) {
-      console.error('Submitting Pricing Tier:', err);
+      console.log('Submitting Pricing Tier:', err);
       let message = 'Something went wrong';
 
       if (typeof err === 'object' && err !== null) {

@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { SalesAgentType } from "../../Types/AdminType";
 import { useDeleteSalesAgentMutation } from "@/Redux/services/SalesAgent";
 import { toast } from "sonner";
+import { timeAgo } from "@/app/components/Reusable/TimeAgo";
 
 interface Props {
     agent: SalesAgentType | null;
@@ -21,7 +22,7 @@ export default function AgentDetailsModal({ agent, open, onClose }: Props) {
             toast.success('Delete Agent Successfully')
             onClose(false)
         } catch (err) {
-            console.error("Delete failed", err);
+            console.log("Delete failed", err);
         }
     }
     return (
@@ -50,11 +51,12 @@ export default function AgentDetailsModal({ agent, open, onClose }: Props) {
                     <div className="mt-4 space-y-2">
                         <p className="text-sm text-gray-600">Email: {agent.email}</p>
                         <div className="flex gap-4 items-center ">
-                            <p className="text-sm text-gray-600">Active Quotes: {agent.activeQuotes}</p>
-                            <p className="text-sm text-gray-600">Conversion Rate: ${agent.conversionRate}</p>
+                           {agent?.activeQuotes &&  <p className="text-sm text-gray-600">Active Quotes: {agent.activeQuotes}</p>}
+                            {agent?.conversionRate && <p className="text-sm text-gray-600">Conversion Rate: ${agent.conversionRate}</p>}
                         </div>
 
-                        <p className="text-sm text-gray-600">Phone: {agent.phoneNumber || "—"}</p>
+                        <p className="text-sm text-gray-600">Phone: {agent.phoneNumber || "NO Contact Found"}</p>
+                       {agent?.lastLogin &&  <p className="text-sm text-gray-600">Last Login: {timeAgo(agent.lastLogin)}</p>}
                     </div>
 
                     {/* Footer */}

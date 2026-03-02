@@ -20,7 +20,7 @@ export default function PricingTiers() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl text-[#044866] mb-1">Pricing Tiers Management</h2>
+              <h2 className="text-2xl text-[#044866] mb-1">Pricing Tiers Management</h2>
               <p className="text-sm text-gray-600">Configure pricing for different student volume tiers and organisation types</p>
             </div>
             <button

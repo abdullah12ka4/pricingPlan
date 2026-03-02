@@ -17,6 +17,7 @@ import { CardNumberElementComponent } from '@stripe/react-stripe-js';
 interface PackageManagementProps {
   mockPackageInfo: any;
   mockPackageHistory: any[];
+  subscription: any[];
   selectedAddOns: any;
   setSelectedAddOns: (addOns: any) => void;
   setShowCreditRefillDialog: (show: boolean) => void;
@@ -25,6 +26,7 @@ interface PackageManagementProps {
 
 export function PackageManagement({
   mockPackageInfo,
+  subscription,
   mockPackageHistory,
   selectedAddOns,
   setSelectedAddOns,
@@ -32,6 +34,7 @@ export function PackageManagement({
   setShowTierExpiryDialog
 }: PackageManagementProps) {
   const [showPackageManagement, setShowPackageManagement] = useState(false);
+  console.log("SUBSCRIPTION IN PACKAGe", subscription)
   const [activePackageTab, setActivePackageTab] = useState<'overview' | 'addons' | 'history'>('overview');
 
   const studentCapacityPercentage = (mockPackageInfo.annualLicense.currentStudents / mockPackageInfo.annualLicense.studentCapacity.max) * 100;

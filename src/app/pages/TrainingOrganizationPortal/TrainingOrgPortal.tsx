@@ -311,6 +311,7 @@ export function TrainingOrgPortal({ onBack, org, subscription }: TrainingOrgPort
                 </>}
 
                 <PackageManagement
+                subscription={subscriptionData}
                     mockPackageInfo={mockPackageInfo}
                     mockPackageHistory={mockPackageHistory}
                     selectedAddOns={selectedAddOns}

@@ -10,12 +10,14 @@ import { useState } from "react";
 
 
 export default function LoginPage() {
-  const [login, { isLoading, error }] = useLoginMutation();
+  const [error, setError] = useState<any>("")
+  const [login, { isLoading}] = useLoginMutation();
   const [isView, setIsView] = useState(false);
   const router = useRouter();
 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    setError("")
     e.preventDefault();
 
     const formData = new FormData(e.currentTarget);
@@ -38,13 +40,23 @@ export default function LoginPage() {
       router.push('/');
     }
     } catch (err) {
-      console.error("Login failed", err);
+      console.log("Login failed", err);
+      if(err && typeof err === 'object' && 'status' in err){
+        const mess = err.status
+        if(err.status === 'FETCH_ERROR'){
+          setError("Failed to Load Server")
+        }  
+        else{
+          setError(mess)  
+        }
+      }
     }
   };
 
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-md p-6">
+      <div className="w-full max-w-md hover:shadow-2xl backdrop-blur-3xl hover:translate-x-1 hover:-translate-y-1 transition-transform duration-300  rounded-lg bg-white shadow-md p-6">
         <h1 className="text-2xl font-semibold text-center">Welcome Back</h1>
         <p className="text-sm text-gray-500 text-center mb-6">
           Sign in to your account
@@ -89,9 +101,7 @@ export default function LoginPage() {
           {/* Error */}
           {error && (
             <p className="text-sm text-red-500 text-center">
-              {"status" in error
-                ? `Error ${error.status}`
-                : "Something went wrong"}
+              {error}            
             </p>
           )}
 
