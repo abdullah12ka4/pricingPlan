@@ -34,6 +34,7 @@ interface GlobalNavProps {
 }
 
 export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
+  console.log(agent)
   if (!agent?.id) {
     return null;
   }
@@ -72,7 +73,7 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
   }
   const onlyView = notifications?.slice(0, 3)
   const wholeNot = all ? notifications : onlyView
-  const unreadNotifications = notifications?.length;
+  const unreadNotifications = notifications?.filter((n: any) => !n.isRead).length;
   const handleView = async (id: string) => {
     try {
       const res = await readNotification(id).unwrap();
@@ -143,7 +144,7 @@ export function GlobalNav({ agent, currentView, onNavigate }: GlobalNavProps) {
                 {wholeNot?.map((n: any) => (
                   <DropdownMenuItem
                     onClick={(e) => {
-                      e.stopPropagation();
+                      e.preventDefault();
                       handleView(n.id);
                     }}
                     key={n.id}

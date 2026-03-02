@@ -6,11 +6,8 @@ import { Progress } from "@/app/components/ui/progress";
 
 
 export function SummaryCards({ mockPackageInfo, credit, invoices }: { mockPackageInfo: any , credit:boolean, invoices: any}) {
-    console.log("mockPackageInfo", mockPackageInfo)
-    console.log("INVOICES", invoices)
     const usagePercentage = (mockPackageInfo.usedCredits / mockPackageInfo.totalCredits) * 100;
     const uniqueStudents = "";
-    console.log("UNIV", uniqueStudents)
     const totalPaid = invoices.filter((inv:any) => inv.status === 'paid').reduce((sum:any, inv:any) => sum + inv.amount, 0);
     const totalPending = invoices.filter((inv:any) => inv.status === 'pending' || inv.status === 'sent').reduce((sum:any, inv:any) => sum + inv.amount, 0);
     const totalOverdue = invoices.filter((inv:any) => inv.status === 'overdue').reduce((sum:any, inv:any) => sum + inv.amount, 0);

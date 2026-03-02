@@ -1,4 +1,5 @@
-import { useState } from 'react';
+'use client';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Settings, ChevronDown, Building, Award, Sparkles, Users, Zap, Package,
@@ -13,6 +14,7 @@ import { Progress } from './ui/progress';
 import { useGetNetworkQuery } from '@/Redux/services/NetworkModal';
 import { Spinner } from './ui/spinner';
 import { CardNumberElementComponent } from '@stripe/react-stripe-js';
+import { useGetAddOnsQuery } from '@/Redux/services/AddOns';
 
 interface PackageManagementProps {
   mockPackageInfo: any;
@@ -22,11 +24,12 @@ interface PackageManagementProps {
   setSelectedAddOns: (addOns: any) => void;
   setShowCreditRefillDialog: (show: boolean) => void;
   setShowTierExpiryDialog: (show: boolean) => void;
+  summary: any
 }
 
 export function PackageManagement({
+  summary,
   mockPackageInfo,
-  subscription,
   mockPackageHistory,
   selectedAddOns,
   setSelectedAddOns,
@@ -34,19 +37,35 @@ export function PackageManagement({
   setShowTierExpiryDialog
 }: PackageManagementProps) {
   const [showPackageManagement, setShowPackageManagement] = useState(false);
-  console.log("SUBSCRIPTION IN PACKAGe", subscription)
   const [activePackageTab, setActivePackageTab] = useState<'overview' | 'addons' | 'history'>('overview');
-
+  const { data: addOnsData, isLoading: addOnsLoading } = useGetAddOnsQuery()
   const studentCapacityPercentage = (mockPackageInfo.annualLicense.currentStudents / mockPackageInfo.annualLicense.studentCapacity.max) * 100;
   const isNearCapacity = studentCapacityPercentage > 80;
-  // console.log("mockPackgage", mockPackageInfo)
 
   const { data: networkData, isLoading: networkLoading } = useGetNetworkQuery()
-  if (networkLoading) {
+  const isLoading = addOnsLoading || networkLoading
+  useEffect(() => {
+    if (!addOnsData || !summary?.items) return;
+
+    // ✅ Step 1: get all addon names already in the summary/subscription
+    const summaryAddonNames = summary.items
+      .filter((i: any) => i.item_type === 'addon')  // only addon items
+      .map((i: any) => i.name);
+
+
+    // ✅ Step 2: filter addOnsData where name exists in that list
+    const initialAddOns = addOnsData.filter((addOn: any) =>
+      summaryAddonNames.includes(addOn.name)  // string vs string ✅
+    );
+    setSelectedAddOns(initialAddOns);
+  }, [addOnsData, summary]); // ✅ add dependencies
+
+  if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Spinner /></div>;
   }
 
-  console.log(networkData)
+
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -367,32 +386,38 @@ export function PackageManagement({
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 
-                        {networkData.map((network: any, index: number) => (
-                          <div key={index} className="relative p-2 rounded-lg border-2 border-slate-200 bg-gradient-to-br from-purple-50/50 to-white hover:border-purple-300 transition-all group">
-                            {network?.isBestValue && <Badge className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-[9px] px-1.5 py-0.5">
-                              Best Value
-                            </Badge>}
-                            <div className="text-center mb-1.5 mt-1">
-                              <p className={`text-xs font-semibold ${index === 0 ? 'text-black-700': index === 1 ? 'text-blue-900':'text-purple-900'} `}>{network?.name}</p>
-                              <p className="text-[10px] text-slate-600">{network?.description}</p>
+                        {networkData.map((network: any, index: number) => {
+                          const isCurrent = network?.id === summary?.network_package?.id
+                          const isUpgrade = network?.credits > summary?.network_package?.credits
+
+                          return (
+                            <div key={index} className="relative p-2 rounded-lg border-2 border-slate-200 bg-gradient-to-br from-purple-50/50 to-white hover:border-purple-300 transition-all group">
+                              {network?.isBestValue && <Badge className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-[9px] px-1.5 py-0.5">
+                                Best Value
+                              </Badge>}
+                              <div className="text-center mb-1.5 mt-1">
+                                <p className={`text-xs font-semibold ${index === 0 ? 'text-black-700' : index === 1 ? 'text-blue-900' : 'text-purple-900'} `}>{network?.name}</p>
+                                <p className="text-[10px] text-slate-600">{network?.description}</p>
+                              </div>
+                              <div className="text-center mb-1.5">
+                                <p className={`text-xl font-bold  ${index === 0 ? 'text-black-700' : index === 1 ? 'text-blue-900' : 'text-purple-900'}`}>{network?.credits}</p>
+                                <p className="text-[10px] text-slate-600">credits/quarter</p>
+                              </div>
+                              <div className="text-center mb-1.5">
+                                <p className="text-sm font-semibold text-slate-900">${network?.totalPrice}</p>
+                                <p className={`text-[9px] ${network?.savingsPercent ? "text-emerald-600" : "text-slate-600"}`}>${network?.pricePerCredit} per credit {network?.savingsPercent}</p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                disabled={isCurrent}
+                                size="sm"
+                                className={`${isCurrent ? 'bg-purple-50' : isUpgrade ? 'hover:bg-transparent' : 'bg-white hover:bg-yellow-500'} w-full text-[10px] h-6 border-purple-300 text-purple-700 group-hover:border-purple-400`}
+                              >
+                                {isCurrent ? 'Current Package' : isUpgrade ? 'Upgrade Now' : 'Select Package'}
+                              </Button>
                             </div>
-                            <div className="text-center mb-1.5">
-                              <p className={`text-xl font-bold  ${index === 0 ? 'text-black-700': index === 1 ? 'text-blue-900':'text-purple-900'}`}>{network?.credits}</p>
-                              <p className="text-[10px] text-slate-600">credits/quarter</p>
-                            </div>
-                            <div className="text-center mb-1.5">
-                              <p className="text-sm font-semibold text-slate-900">${network?.totalPrice}</p>
-                              <p className={`text-[9px] ${network?.savingsPercent ? "text-emerald-600" : "text-slate-600"}`}>${network?.pricePerCredit} per credit {network?.savingsPercent}</p>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full text-[10px] h-6 border-purple-300 text-purple-700 hover:bg-purple-50 group-hover:border-purple-400"
-                            >
-                              Upgrade Now
-                            </Button>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
 
                       <div className="mt-2 p-2 bg-blue-50/50 rounded-md border border-blue-200/60">
@@ -408,152 +433,88 @@ export function PackageManagement({
                     </div>
                   </TabsContent>
 
-                  {/* Add-ons Tab */}
                   <TabsContent value="addons" className="space-y-2.5 mt-0">
                     <div className="bg-white rounded-lg border border-slate-200 p-2.5">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-xs font-semibold text-[#044866]">Available Add-ons & Enhancements</h4>
                         <Badge className="bg-purple-100 text-purple-700 border-purple-300 text-[9px] px-1.5 py-0.5">
-                          {Object.values(selectedAddOns).filter((a: any) => a.enabled).length} Active
+                          {selectedAddOns.length} Active
                         </Badge>
                       </div>
 
                       <div className="space-y-2">
                         {/* AI Calls Add-on */}
-                        <div className="flex items-start gap-2 p-2 rounded-md border border-slate-200 bg-gradient-to-r from-blue-50/50 to-white">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <Sparkles className="w-3 h-3 text-blue-600" />
-                              <p className="text-xs font-medium text-slate-900">AI-Powered Matching API Credits</p>
-                              <Badge className={`text-[9px] px-1 py-0 h-3.5 ${selectedAddOns.aiCalls.enabled ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
-                                {selectedAddOns.aiCalls.enabled ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </div>
-                            <p className="text-[10px] text-slate-600 leading-tight mb-1">
-                              Enhanced AI matching algorithms for better placement outcomes and student satisfaction
-                            </p>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className="text-[10px]">
-                                <span className="font-semibold text-[#044866]">{selectedAddOns.aiCalls.quantity} calls/month</span>
-                                <span className="text-slate-600"> • $4.50 per call</span>
+                        {addOnsData?.map((addOn: any, index: number) => {
+                          const isSelected = selectedAddOns?.some((a: any) => a.id === addOn.id) ?? false
+                          return (
+                            <div key={index} className="flex items-start gap-2 p-2 rounded-md border border-slate-200 bg-gradient-to-r from-blue-50/50 to-white">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <Sparkles className="w-3 h-3 text-blue-600" />
+                                  <p className="text-xs font-medium text-slate-900">{addOn?.name}</p>
+                                  <Badge className={`text-[9px] px-1 py-0 h-3.5 ${isSelected ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                                    {isSelected ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </div>
+                                <p className="text-[10px] text-slate-600 leading-tight mb-1">
+                                  {addOn?.description}
+                                </p>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <div className="text-[10px]">
+                                    <span className="font-semibold text-[#044866]">${addOn?.price} / {addOn?.billingFrequency}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-[10px] text-emerald-600 font-medium">
-                                Save 15% vs. pay-as-you-go
-                              </div>
+                              <Button
+                                variant={isSelected ? "outline" : "default"}
+                                size="sm"
+                                className={`text-[10px] h-6 px-2 ${isSelected ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-[#044866] hover:bg-[#0D5468] text-white'}`}
+                                onClick={() => setSelectedAddOns(isSelected ? selectedAddOns.filter((a: any) => a.id !== addOn.id) : [...selectedAddOns, addOn])}
+                              >
+                                {isSelected ? 'Remove' : 'Add'}
+                              </Button>
                             </div>
-                          </div>
-                          <Button
-                            variant={selectedAddOns.aiCalls.enabled ? "outline" : "default"}
-                            size="sm"
-                            className={`text-[10px] h-6 px-2 ${selectedAddOns.aiCalls.enabled ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-[#044866] hover:bg-[#0D5468] text-white'}`}
-                            onClick={() => setSelectedAddOns({
-                              ...selectedAddOns,
-                              aiCalls: { ...selectedAddOns.aiCalls, enabled: !selectedAddOns.aiCalls.enabled }
-                            })}
-                          >
-                            {selectedAddOns.aiCalls.enabled ? 'Remove' : 'Add'}
-                          </Button>
-                        </div>
+                          )
+                        })}
 
-                        {/* Admin Support Add-on */}
-                        <div className="flex items-start gap-2 p-2 rounded-md border border-slate-200 bg-gradient-to-r from-purple-50/50 to-white">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <Users className="w-3 h-3 text-purple-600" />
-                              <p className="text-xs font-medium text-slate-900">Premium Admin Support to Students</p>
-                              <Badge className={`text-[9px] px-1 py-0 h-3.5 ${selectedAddOns.adminSupport.enabled ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
-                                {selectedAddOns.adminSupport.enabled ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </div>
-                            <p className="text-[10px] text-slate-600 leading-tight mb-1">
-                              Dedicated support team to assist your students with placement applications and onboarding
-                            </p>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className="text-[10px]">
-                                <span className="font-semibold text-[#044866]">Priority support</span>
-                                <span className="text-slate-600"> • $249/month</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600">
-                                Includes: Email, chat & phone support
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            variant={selectedAddOns.adminSupport.enabled ? "outline" : "default"}
-                            size="sm"
-                            className={`text-[10px] h-6 px-2 ${selectedAddOns.adminSupport.enabled ? 'border-red-300 text-red-700 hover:bg-red-50' : 'bg-[#044866] hover:bg-[#0D5468] text-white'}`}
-                            onClick={() => setSelectedAddOns({
-                              ...selectedAddOns,
-                              adminSupport: { ...selectedAddOns.adminSupport, enabled: !selectedAddOns.adminSupport.enabled }
-                            })}
-                          >
-                            {selectedAddOns.adminSupport.enabled ? 'Remove' : 'Add'}
-                          </Button>
-                        </div>
 
-                        {/* Network Credits Top-up */}
-                        <div className="flex items-start gap-2 p-2 rounded-md border border-slate-200 bg-gradient-to-r from-amber-50/50 to-white">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <Zap className="w-3 h-3 text-[#F7A619]" />
-                              <p className="text-xs font-medium text-slate-900">Network Credits Top-up</p>
-                              <Badge className="bg-blue-100 text-blue-700 border-blue-300 text-[9px] px-1 py-0 h-3.5">
-                                On-Demand
-                              </Badge>
-                            </div>
-                            <p className="text-[10px] text-slate-600 leading-tight mb-1">
-                              Purchase additional credits mid-quarter as needed - no minimum purchase required
-                            </p>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className="text-[10px]">
-                                <span className="font-semibold text-[#044866]">Flexible pricing</span>
-                                <span className="text-slate-600"> • From $15/credit</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600">
-                                Volume discounts: 50+ credits save 10%
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="text-[10px] h-6 px-2 bg-gradient-to-r from-[#F7A619] to-orange-500 hover:from-[#F7A619]/90 hover:to-orange-500/90 text-white"
-                            onClick={() => setShowCreditRefillDialog(true)}
-                          >
-                            Buy Now
-                          </Button>
-                        </div>
                       </div>
                     </div>
 
                     {/* Add-ons Summary */}
-                    <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-lg border border-slate-200 p-2.5">
-                      <h4 className="text-xs font-semibold text-slate-900 mb-2">Current Add-ons Summary</h4>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-600">AI Matching Credits</span>
-                          <span className="font-medium text-slate-900">
-                            {selectedAddOns.aiCalls.enabled ? `$${(selectedAddOns.aiCalls.quantity * 4.5).toFixed(2)}/mo` : '--'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-600">Premium Support</span>
-                          <span className="font-medium text-slate-900">
-                            {selectedAddOns.adminSupport.enabled ? '$249.00/mo' : '--'}
-                          </span>
-                        </div>
-                        <div className="pt-1.5 border-t border-slate-300 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-900">Monthly Total</span>
-                          <span className="font-bold text-[#044866]">
-                            ${(
-                              (selectedAddOns.aiCalls.enabled ? selectedAddOns.aiCalls.quantity * 4.5 : 0) +
-                              (selectedAddOns.adminSupport.enabled ? 249 : 0)
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+              <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-lg border border-slate-200 p-2.5">
+  <h4 className="text-xs font-semibold text-slate-900 mb-2">Current Add-ons Summary</h4>
+  
+  <div className="space-y-1.5">
+    {/* ✅ Check it's an array before mapping */}
+    {Array.isArray(selectedAddOns) && selectedAddOns.length > 0 ? (
+      <>
+        {selectedAddOns.map((s: any) => (
+          <div key={s.id} className="flex items-center justify-between text-[10px]">
+            <span className="text-slate-600">{s.name}</span>
+            <span className="font-medium text-slate-900">
+              ${s.price} / {s.billingFrequency}
+            </span>
+          </div>
+        ))}
+
+        {/* ✅ Total calculated once OUTSIDE the map */}
+        <div className="pt-1.5 border-t border-slate-300 flex items-center justify-between text-xs">
+          <span className="font-semibold text-slate-900">Monthly Total</span>
+          <span className="font-bold text-[#044866]">
+            ${selectedAddOns
+              .reduce((acc: number, a: any) => acc + parseFloat(a.price ?? 0), 0)
+              .toFixed(2)}
+          </span>
+        </div>
+      </>
+    ) : (
+      <p className="text-[10px] text-slate-400 text-center py-2">No add-ons selected</p>
+    )}
+  </div>
+</div>
                   </TabsContent>
+
 
                   {/* History Tab */}
                   <TabsContent value="history" className="space-y-2.5 mt-0">

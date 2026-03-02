@@ -38,18 +38,20 @@ export default function LoginPage() {
 
       router.push('/');
     }
-    } catch (err) {
-      console.log("Login failed", err);
-      if(err && typeof err === 'object' && 'status' in err){
-        const mess = err.status
-        if(err.status === 'FETCH_ERROR'){
-          setError("Failed to Load Server")
-        }  
-        else{
-          setError(mess)  
-        }
-      }
-    }
+  } catch (err: any) {
+  if (err?.status === "FETCH_ERROR") {
+    setError("Network error. Please try again.");
+  } 
+  else if (err?.status === 401) {
+    setError("Invalid email or password.");
+  } 
+  else if (err?.data?.message) {
+    setError(err.data.message);
+  } 
+  else {
+    setError("Something went wrong.");
+  }
+}
   };
 
 

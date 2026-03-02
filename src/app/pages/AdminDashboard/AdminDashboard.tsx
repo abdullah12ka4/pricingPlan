@@ -29,18 +29,6 @@ import Dashboard from './Dashboard';
 import { useGetQuotesQuery } from '@/Redux/services/ActiveQuotes';
 
 
-// Mock data for dashboard stats
-const dashboardStats = {
-  activeCustomers: 127,
-  monthlyRevenue: 184500,
-  activeQuotes: 23,
-  pendingApprovals: 5,
-  revenueGrowth: 12.5,
-  conversionRate: 68.4,
-  avgDealSize: 8750,
-  churRate: 2.1
-};
-
 
 export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
   const {data:quotes} = useGetQuotesQuery()
@@ -61,13 +49,13 @@ export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
     ];
 
     return (
-      <div className="w-64 bg-white border-r border-[#044866]/10 min-h-screen p-5">
+      <div className="sm:w-64 bg-white border-r border-[#044866]/10 min-h-screen p-5">
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-8 h-8 bg-gradient-to-br from-[#044866] to-[#0D5468] rounded-lg flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <div>
+            <div className='hidden sm:block'>
               <div className="text-sm text-[#044866]">Admin Console</div>
               <div className="text-xs text-gray-500">Full Control</div>
             </div>
@@ -89,7 +77,7 @@ export function AdminDashboard({ onBack, data }: AdminDashboardProps) {
                     }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-[#044866]'}`} />
-                  <span className="text-sm flex-1 text-left">{item.label}</span>
+                  <span className="text-sm hidden sm:block flex-1 text-left">{item.label}</span>
                   {pendingCount > 0 && (
                     <span className="px-1.5 py-0.5 bg-[#F7A619] text-white text-xs rounded-full">
                       {pendingCount}

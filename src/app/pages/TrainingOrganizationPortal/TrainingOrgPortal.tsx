@@ -25,6 +25,7 @@ import { skipToken } from '@reduxjs/toolkit/query';
 import { useGetInvoiceByOrgIdQuery } from '@/Redux/services/Invoice';
 import { useGetSubscriptionQuery } from '@/Redux/services/Subscription';
 import { buildPackageInfo } from './Data/PackageInfo';
+import { useGetQuotesQuery, useGetSpecificQuotesQuery } from '@/Redux/services/ActiveQuotes';
 
 interface TrainingOrgPortalProps {
     onBack: () => void;
@@ -128,7 +129,9 @@ export function TrainingOrgPortal({ onBack, org, subscription }: TrainingOrgPort
     const { data: invoiceData, isLoading: isLoadingInvoice } = useGetInvoiceByOrgIdQuery(org?.id);
     const { data: organizationData, isLoading: isLoadingOrganization } = useGetOrganizationQuery({ id: org?.id });
     const { data: subscriptionData, isLoading: isLoadingSubscription } = useGetSubscriptionQuery({ id: subscription?.id });
-
+    const { data: quoteData, isLoading: quoteLoading } = useGetQuotesQuery()
+    const { data: UserQuote, isLoading: userQuoteLoading } = useGetSpecificQuotesQuery(quoteData?.data.quotes[0]?.id)
+    
     const [searchTerm, setSearchTerm] = useState('');
     const [filterActivity, setFilterActivity] = useState('all');
     const [filterIndustry, setFilterIndustry] = useState('all');
@@ -173,11 +176,7 @@ export function TrainingOrgPortal({ onBack, org, subscription }: TrainingOrgPort
     const [showTierExpiryDialog, setShowTierExpiryDialog] = useState(false);
     const [selectedCreditPack, setSelectedCreditPack] = useState<string | null>(null);
     const [showPackageManagement, setShowPackageManagement] = useState(false);
-    const [selectedAddOns, setSelectedAddOns] = useState({
-        aiCalls: { enabled: true, quantity: 100 },
-        adminSupport: { enabled: false, quantity: 0 },
-        creditTopup: { enabled: false, quantity: 0 }
-    });
+    const [selectedAddOns, setSelectedAddOns] = useState();
     const [activePackageTab, setActivePackageTab] = useState<'overview' | 'addons' | 'history'>('overview');
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
@@ -186,7 +185,7 @@ export function TrainingOrgPortal({ onBack, org, subscription }: TrainingOrgPort
         org?.id ? { orgId: org.id, limit: 100, page: 1, fromDate: '', toDate: '' } : skipToken
     );
 
-    const isLoading = isLoadingOrganization || isLoadingBalance || isLoadingUsage || isLoadingInvoice || isLoadingSubscription;
+    const isLoading = isLoadingOrganization || isLoadingBalance || isLoadingUsage || isLoadingInvoice || isLoadingSubscription || quoteLoading || userQuoteLoading;
 
     const mockCreditUsage = transformUsageData(usageData);
     const mockQuarterlyData = generateQuarterlyData(balanceData, usageData);
@@ -198,8 +197,8 @@ export function TrainingOrgPortal({ onBack, org, subscription }: TrainingOrgPort
         if (mockQuarterlyData.length > 0 && expandedQuarters.length === 0) {
             setExpandedQuarters([mockQuarterlyData[0].quarter]);
         }
-    // Only run when quarterly data first populates
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Only run when quarterly data first populates
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mockQuarterlyData.length]);
 
     const industries = ['all', ...Array.from(new Set(mockCreditUsage.map((u: any) => u.industry)))];
@@ -311,7 +310,8 @@ export function TrainingOrgPortal({ onBack, org, subscription }: TrainingOrgPort
                 </>}
 
                 <PackageManagement
-                subscription={subscriptionData}
+                    summary={UserQuote?.data}
+                    subscription={subscriptionData}
                     mockPackageInfo={mockPackageInfo}
                     mockPackageHistory={mockPackageHistory}
                     selectedAddOns={selectedAddOns}

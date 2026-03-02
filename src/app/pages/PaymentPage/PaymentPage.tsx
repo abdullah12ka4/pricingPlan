@@ -14,8 +14,8 @@ interface PaymentPageProps {
   onBack: () => void;
   onComplete: () => void;
   agent: any;
-  agentRefetch: () => void; 
-  selAddon: any[]; 
+  agentRefetch: () => void;
+  selAddon: any[];
   unselAddon?: any[];
 }
 
@@ -49,7 +49,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardholderName, setCardholderName] = useState('');
   const [cardErrors, setCardErrors] = useState({ cardNumber: '', cardExpiry: '', cardCvc: '' });
-  // ✅ Track completion so we can show success screen inside this component
   const [isCompleted, setIsCompleted] = useState(false);
   const [completionType, setCompletionType] = useState<'new' | 'upgrade' | 'downgrade'>('new');
 
@@ -69,41 +68,23 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
     primaryContactName: existingOrganization?.primaryContactName || '',
   });
 
-  /**
-   * ✅ Determine upgrade vs downgrade based on pricing tier comparison.
-   * isUpgrade: new plan costs MORE than existing → upgradeSubscription API
-   * isDowngrade: new plan costs LESS → downgradeSubscription API
-   *
-   * Additional logic:
-   * - If selAddon has entries → user added new addons (goes to additional_addon_ids)
-   * - If unselAddon has entries → user removed addons (goes to remove_addon_ids)
-   * - Both can happen simultaneously (e.g. user swaps addons during upgrade)
-   */
   const existingTotal = subscriptionData?.length > 0
     ? parseFloat(subscriptionData[0]?.tier?.annualPrice ?? '0') +
-      parseFloat(
-        subscriptionData[0]?.addons?.reduce(
-          (acc: number, addon: any) => acc + addon.unitPrice * addon.quantity,
-          0
-        ) ?? '0'
-      )
+    parseFloat(
+      subscriptionData[0]?.addons?.reduce(
+        (acc: number, addon: any) => acc + addon.unitPrice * addon.quantity,
+        0
+      ) ?? '0'
+    )
     : 0;
 
   const newTotal = summary?.totals?.subtotal ?? 0;
   const hasExistingSubscription = subscriptionData && subscriptionData.length > 0;
 
-  /**
-   * isUpgrade: plan cost went up OR new addons were added
-   * isDowngrade: plan cost went down OR addons were removed (and nothing added)
-   */
   const isUpgrade = hasExistingSubscription && (
     newTotal >= existingTotal || (selAddon && selAddon.length > 0)
   );
   const isDowngrade = hasExistingSubscription && !isUpgrade;
-
-  console.log('selAddon (newly added):', selAddon);
-  console.log('unselAddon (removed):', unselAddon);
-  console.log('isUpgrade:', isUpgrade, '| isDowngrade:', isDowngrade);
 
   useEffect(() => {
     if (!elements) return;
@@ -122,14 +103,17 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
     });
   }, [elements]);
 
-  const handleOrganization = async () => {
+  // Returns the saved/updated organization id
+  const handleOrganization = async (): Promise<string> => {
     try {
       if (existingOrganization?.id) {
         await updateOrganization({ id: existingOrganization.id, payload: billingInfo }).unwrap();
+        return existingOrganization.id;
       } else {
-        await addOrganization(billingInfo).unwrap();
+        const res = await addOrganization(billingInfo).unwrap();
+        // Return whichever field your API uses for the new org id
+        return res?.id ?? res?.data?.id;
       }
-      agentRefetch();
     } catch (err: any) {
       console.error('Organization error:', err);
       throw new Error('Failed to save organization details');
@@ -143,9 +127,11 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
       toast.error('Please agree to the terms and conditions');
       return;
     }
-    if (!billingInfo.name || !billingInfo.abnAcn || !billingInfo.primaryContactName ||
+    if (
+      !billingInfo.name || !billingInfo.abnAcn || !billingInfo.primaryContactName ||
       !billingInfo.billingEmail || !billingInfo.contactPhone || !billingInfo.addressLine1 ||
-      !billingInfo.city || !billingInfo.state || !billingInfo.postalCode) {
+      !billingInfo.city || !billingInfo.state || !billingInfo.postalCode
+    ) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -153,38 +139,14 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
     setIsProcessing(true);
 
     try {
-      // Step 1: Save/Update organization
-      await handleOrganization();
+      // ─── STEP 1: Save / update organization, get back its ID ───────────────
+      const organizationId = await handleOrganization();
 
-      let stripePaymentMethodId = '';
-
-      // Step 2: Card payment for new subscriptions.
-      // NOTE: For upgrades, card is confirmed AFTER upgradeSubscription returns client_secret.
-      // So we skip the upfront paymentIntent call for upgrades — handled in the upgrade block.
-      if (paymentMethod === 'card' && !hasExistingSubscription) {
-        if (!stripe || !elements) throw new Error('Stripe not loaded');
-        const cardNumberElement = elements.getElement(CardNumberElement);
-        if (!cardNumberElement) throw new Error('Card not found');
-
-        const response = await paymentIntent({ quoteId: summary?.id }).unwrap();
-
-        const { error, paymentIntent: confirmedIntent } = await stripe.confirmCardPayment(
-          response.client_secret,
-          {
-            payment_method: {
-              card: cardNumberElement,
-              billing_details: {
-                name: cardholderName,
-                email: billingInfo.billingEmail,
-              },
-            },
-          }
-        );
-
-        if (error) throw new Error(error.message);
-        if (confirmedIntent?.status !== 'succeeded') throw new Error('Payment failed');
-
-        stripePaymentMethodId = response.payment_id;
+      if (!organizationId) {
+        // org id not available yet — refetch and ask user to retry
+        agentRefetch();
+        toast.error('Organization details are still loading. Please try again in a moment.');
+        return;
       }
 
       // ─── UPGRADE ────────────────────────────────────────────────────────────
@@ -203,11 +165,7 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
         }).unwrap();
         console.log('upgradeRes:', upgradeRes);
 
-        /**
-         * ✅ API returns status: "pending_payment" when Stripe charge is needed.
-         * Use the client_secret from the response to confirm card payment.
-         * If status is already "active", skip Stripe and go straight to success.
-         */
+        // API returns status: "pending_payment" when Stripe charge is needed
         if (upgradeRes?.data?.status === 'pending_payment' && upgradeRes?.data?.client_secret) {
           if (!stripe || !elements) throw new Error('Stripe not loaded');
 
@@ -231,7 +189,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
           if (confirmedIntent?.status !== 'succeeded') throw new Error('Upgrade payment was not completed');
         }
 
-        // ✅ Payment confirmed (or no payment required) — show success screen
         setCompletionType('upgrade');
         setIsCompleted(true);
         agentRefetch();
@@ -245,46 +202,107 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
           reason: 'Plan downgrade',
         };
         console.log('downgradePayload:', downgradePayload);
+
         await downgradeSubscription({
           id: subscriptionData[0]?.id,
           payload: downgradePayload,
         }).unwrap();
+
         setCompletionType('downgrade');
         setIsCompleted(true);
         agentRefetch();
 
       // ─── NEW SUBSCRIPTION ───────────────────────────────────────────────────
       } else {
-        const subscriptionPayload: any = {
-          organization_id: agent?.organization?.id || existingOrganization?.id,
-          quote_id: summary?.id,
-          plan_type: summary?.plan_type,
-          start_date: summary?.created_at,
-          pricing_tier_id: summary?.pricing_tier?.id,
-          network_package_id: summary?.network_package?.id,
-          /**
-           * ✅ For new subscriptions, selAddon holds ALL selected addon IDs.
-           */
-          addon_ids: selAddon ?? [],
-          billing_cycle: 'annual',
-          auto_renew: true,
-          payment_method: paymentMethod,
-          payment_details: {
-            stripe_payment_method_id: paymentMethod === 'card' ? stripePaymentMethodId : '',
-          },
-        };
-        console.log('newSubscriptionPayload:', subscriptionPayload);
-        const res = await addSubscription(subscriptionPayload).unwrap();
-        console.log('addSubscription response:', res);
-        if (res?.success) {
+
+        if (paymentMethod === 'card') {
+          // ── STEP 2a (card): Create subscription FIRST ────────────────────────
+          const subscriptionPayload: any = {
+            organization_id: organizationId,
+            quote_id: summary?.id,
+            plan_type: summary?.plan_type,
+            start_date: summary?.created_at,
+            pricing_tier_id: summary?.pricing_tier?.id,
+            network_package_id: summary?.network_package?.id,
+            addon_ids: selAddon ?? [],
+            billing_cycle: 'annual',
+            auto_renew: true,
+            payment_method: 'card',
+            payment_details: {
+              stripe_payment_method_id: '',  // filled after payment confirmation
+            },
+          };
+          console.log('newSubscriptionPayload (card):', subscriptionPayload);
+
+          const subRes = await addSubscription(subscriptionPayload).unwrap();
+          console.log('addSubscription response:', subRes);
+
+          if (!subRes?.success) {
+            throw new Error(subRes?.message ?? 'Failed to create subscription');
+          }
+
+          // ── STEP 3 (card): Create payment intent using the new subscription / quote ─
+          if (!stripe || !elements) throw new Error('Stripe not loaded');
+          const cardNumberElement = elements.getElement(CardNumberElement);
+          if (!cardNumberElement) throw new Error('Card element not found');
+
+          const intentRes = await paymentIntent({ quoteId: summary?.id }).unwrap();
+          console.log('paymentIntent response:', intentRes);
+
+          // ── STEP 4 (card): Confirm the card payment ──────────────────────────
+          const { error, paymentIntent: confirmedIntent } = await stripe.confirmCardPayment(
+            intentRes.client_secret,
+            {
+              payment_method: {
+                card: cardNumberElement,
+                billing_details: {
+                  name: cardholderName,
+                  email: billingInfo.billingEmail,
+                },
+              },
+            }
+          );
+
+          if (error) throw new Error(error.message ?? 'Card payment failed');
+          if (confirmedIntent?.status !== 'succeeded') throw new Error('Payment was not completed');
+
+          // ── STEP 5 (card): Mark success ──────────────────────────────────────
           setCompletionType('new');
           setIsCompleted(true);
           agentRefetch();
+
+        } else {
+          // ── STEP 2b (bank transfer): Create subscription, no Stripe step ─────
+          const subscriptionPayload: any = {
+            organization_id: organizationId,
+            quote_id: summary?.id,
+            plan_type: summary?.plan_type,
+            start_date: summary?.created_at,
+            pricing_tier_id: summary?.pricing_tier?.id,
+            network_package_id: summary?.network_package?.id,
+            addon_ids: selAddon ?? [],
+            billing_cycle: 'annual',
+            auto_renew: true,
+            payment_method: 'bank_transfer',
+            payment_details: {
+              stripe_payment_method_id: '',
+            },
+          };
+          console.log('newSubscriptionPayload (bank_transfer):', subscriptionPayload);
+
+          const subRes = await addSubscription(subscriptionPayload).unwrap();
+          console.log('addSubscription response:', subRes);
+
+          if (subRes?.success) {
+            setCompletionType('new');
+            setIsCompleted(true);
+            agentRefetch();
+          } else {
+            throw new Error(subRes?.message ?? 'Failed to create subscription');
+          }
         }
       }
     } catch (err: any) {
-      console.error('Payment error:', err);
-
       let errorMessage = 'Something went wrong. Please try again.';
       let errorDescription: string | undefined;
 
@@ -300,7 +318,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
     }
   };
 
-
   // ─── SUCCESS SCREEN ────────────────────────────────────────────────────────
   if (isCompleted) {
     const isUpgradeComplete = completionType === 'upgrade';
@@ -309,32 +326,26 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#044866]/5 via-white to-[#F7A619]/5 flex items-center justify-center px-4">
         <div className="max-w-md w-full">
-          {/* Animated success card */}
           <div className="bg-white rounded-2xl shadow-xl border border-[#044866]/10 overflow-hidden">
-            {/* Top accent bar */}
             <div className={`h-1.5 w-full ${isUpgradeComplete ? 'bg-gradient-to-r from-green-400 to-emerald-500' : isDowngradeComplete ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-gradient-to-r from-[#044866] to-[#0D5468]'}`} />
 
             <div className="p-8 text-center">
-              {/* Icon */}
               <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 ${isUpgradeComplete ? 'bg-green-100' : isDowngradeComplete ? 'bg-amber-100' : 'bg-[#044866]/10'}`}>
                 <CheckCircle2 className={`w-10 h-10 ${isUpgradeComplete ? 'text-green-600' : isDowngradeComplete ? 'text-amber-600' : 'text-[#044866]'}`} />
               </div>
 
-              {/* Title */}
               <h1 className="text-2xl font-bold text-[#044866] mb-2">
                 {isUpgradeComplete ? 'Plan Upgraded!' : isDowngradeComplete ? 'Plan Updated!' : 'Payment Successful!'}
               </h1>
 
-              {/* Subtitle */}
               <p className="text-gray-500 text-sm mb-6">
                 {isUpgradeComplete
                   ? 'Your subscription has been upgraded successfully. Changes are effective immediately.'
                   : isDowngradeComplete
-                  ? 'Your subscription has been updated. Changes will take effect at the next billing cycle.'
-                  : 'Your subscription is now active. Welcome aboard!'}
+                    ? 'Your subscription has been updated. Changes will take effect at the next billing cycle.'
+                    : 'Your subscription is now active. Welcome aboard!'}
               </p>
 
-              {/* Summary box */}
               <div className={`rounded-xl p-4 mb-6 text-left border ${isUpgradeComplete ? 'bg-green-50 border-green-200' : isDowngradeComplete ? 'bg-amber-50 border-amber-200' : 'bg-[#044866]/5 border-[#044866]/20'}`}>
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className={`w-4 h-4 ${isUpgradeComplete ? 'text-green-600' : isDowngradeComplete ? 'text-amber-600' : 'text-[#044866]'}`} />
@@ -373,7 +384,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
                 </div>
               </div>
 
-              {/* What happens next */}
               <div className="text-left mb-6">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">What happens next</p>
                 <ul className="space-y-1.5">
@@ -394,7 +404,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
                 </ul>
               </div>
 
-              {/* CTA button */}
               <button
                 onClick={() => {
                   const messages = {
@@ -627,7 +636,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
               <div className="bg-white border-2 border-[#044866]/10 rounded-xl p-5 shadow-lg sticky top-20">
                 <h3 className="text-base text-[#044866] mb-4">Order Summary</h3>
 
-                {/* Subscription change badge */}
                 {hasExistingSubscription && (
                   <div className={`mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${isUpgrade ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                     {isUpgrade ? '⬆ Upgrading your subscription' : '⬇ Downgrading your subscription'}
@@ -670,7 +678,6 @@ function PaymentForm({ summary, onBack, onComplete, agent, agentRefetch, selAddo
                         <div key={item.id} className="flex justify-between text-xs mb-1.5">
                           <span className="text-gray-600 flex items-center gap-1">
                             {item.name}
-                            {/* ✅ Badge: new vs existing vs removed */}
                             {selAddon?.includes(item.id) && (
                               <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">New</span>
                             )}
@@ -745,4 +752,4 @@ export function PaymentPage(props: PaymentPageProps) {
       <PaymentForm {...props} />
     </Elements>
   );
-}      
+}
