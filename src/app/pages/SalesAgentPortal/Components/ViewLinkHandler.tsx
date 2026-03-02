@@ -17,7 +17,6 @@ export default function ViewLinkHandler({
     const markAsViewed = async () => {
       try {
         await viewQuotes({ id: quoteId, token }).unwrap();
-        console.log("Quote marked as viewed");
       } catch (err) {
         console.error("Failed to mark quote as viewed", err);
       }

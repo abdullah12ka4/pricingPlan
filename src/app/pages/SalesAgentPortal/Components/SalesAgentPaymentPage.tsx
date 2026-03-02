@@ -24,8 +24,6 @@ export default function SalesAgentPaymentPage({ quoteId }: { quoteId: string }) 
     }
 
     const checkOutData = data?.data
-
-    console.log(checkOutData)
     return (
         <section>
             <div className="max-w-4xl mx-auto">

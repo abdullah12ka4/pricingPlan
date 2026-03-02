@@ -7,7 +7,6 @@ import { Zap } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Step5({ data }: { data: NetworkPack[] }) {
-  console.log("NETWORK PACK SELECTER", data)
   const [selectedNetworkPack, setSelectedNetworkPack] = useState<string | null>(null);
 
   return (

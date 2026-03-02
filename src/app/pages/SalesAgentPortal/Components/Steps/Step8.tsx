@@ -74,7 +74,6 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
                 });
             }
         } catch (err) {
-            console.log("Error occurs", err)
             if (typeof err === "object" && err !== null && "data" in err) {
                 const { data } = err as FetchBaseQueryError;
 
@@ -99,7 +98,6 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
             expiryDays: Number(linkExpiry),
             sendEmail: true,
         };
-
         try {
             const res = await generateLink({
                 id,
@@ -119,8 +117,6 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
             }
         }
     };
-
-    console.log(isLoading)
 
 
     return (
@@ -364,8 +360,8 @@ export default function Step8({ id, setexpiry, currentStep }: Props) {
                                                 onClick={() => handleSendEmail(checkOutData.id)}
                                                 className="w-full px-6 py-4 bg-[#044866] text-white rounded-xl hover:bg-[#0D5468] transition-all flex items-center justify-center gap-2"
                                             >
-                                                <Mail className="w-4 h-4" />
-                                                {isLoading ? <Spinner /> : ' Send via Email'}
+                                                {!generateLinkLoading && <Mail className="w-4 h-4" />}                                                
+                                                {generateLinkLoading ? <Spinner /> : ' Send via Email'}
                                             </button>
                                         </div>
 
